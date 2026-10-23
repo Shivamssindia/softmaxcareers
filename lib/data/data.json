@@ -1,0 +1,1146 @@
+{
+  "categories": [
+    {
+      "id": "cloud-infrastructure",
+      "name": "Cloud & Infrastructure",
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/googlecloud/googlecloud-original.svg",
+      "description": "Cloud-native infrastructure, deployment, and scaling across modern providers. We architect resilient, auto-scaling systems on Google Cloud, Oracle Cloud, and hybrid environments — from compute and storage to managed ML services and global networking."
+    },
+    {
+      "id": "devops-cicd",
+      "name": "DevOps & CI/CD",
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/docker/docker-original.svg",
+      "description": "Automation, containerization, and continuous delivery pipelines. We build end-to-end DevOps workflows with Git-based version control, container orchestration, automated testing gates, and reproducible deployments across staging and production."
+    },
+    {
+      "id": "backend-enterprise",
+      "name": "Backend & Enterprise",
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/spring/spring-original.svg",
+      "description": "Enterprise-grade backend services and frameworks powering mission-critical workloads. Our teams build secure, scalable APIs and microservices with Spring Boot, Express, and battle-tested Java/Python stacks backed by strong data persistence layers."
+    },
+    {
+      "id": "databases",
+      "name": "Databases",
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mysql/mysql-original.svg",
+      "description": "Relational and NoSQL data stores for modern applications. We design schemas, tune queries, and operate high-availability clusters across MySQL, PostgreSQL, Oracle, MongoDB, and in-memory stores to meet performance, durability, and compliance requirements."
+    },
+    {
+      "id": "mobile",
+      "name": "Mobile Development",
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/flutter/flutter-original.svg",
+      "description": "Cross-platform and native mobile application development for iOS and Android. We ship polished, high-performance apps using Flutter and Dart for cross-platform reach, and Kotlin/Java with Jetpack Compose for deeply native experiences."
+    },
+    {
+      "id": "frontend-web",
+      "name": "Frontend & Web",
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg",
+      "description": "Modern web interfaces, frameworks, and web standards. We build fast, accessible, SEO-friendly applications with React, Next.js, and TypeScript — backed by strong engineering around performance budgets, Core Web Vitals, and design-system consistency."
+    },
+    {
+      "id": "ai-ml",
+      "name": "AI & Machine Learning",
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/tensorflow/tensorflow-original.svg",
+      "description": "Artificial intelligence, ML models, and intelligent systems. From data preprocessing and model training to LLM-powered applications, RAG pipelines, agentic workflows, computer vision, OCR, and NLP — we deliver production-grade AI features grounded in evaluation and monitoring."
+    },
+    {
+      "id": "realtime-networking",
+      "name": "Real-Time & Networking",
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/socketio/socketio-original.svg",
+      "description": "Low-latency communication, streaming, and networking protocols. We build live audio/video, chat, presence, and multiplayer-style experiences with WebRTC, WebSocket, P2P, TURN/STUN traversal, and streaming stacks — engineered for reliability across NATs, firewalls, and mobile networks."
+    },
+    {
+      "id": "security",
+      "name": "Security",
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/linux/linux-original.svg",
+      "description": "Authentication, encryption, and secure infrastructure. We design defense-in-depth systems with modern token-based auth (JWT), TLS/SSL enforcement, firewalling, and least-privilege access — aligned with OWASP and enterprise compliance baselines."
+    },
+    {
+      "id": "os-runtime",
+      "name": "Operating Systems",
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/linux/linux-original.svg",
+      "description": "Operating systems and runtime environments. Our infrastructure runs on hardened Linux distributions like Ubuntu, tuned for containers, orchestration, and predictable performance at scale."
+    }
+  ],
+  "technologies": [
+    {
+      "id": "oracle",
+      "name": "Oracle",
+      "categoryIds": ["databases", "cloud-infrastructure"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/oracle/oracle-original.svg",
+      "level": "Enterprise Database & Cloud",
+      "description": "Oracle provides enterprise-grade relational databases and a full cloud platform (OCI) for mission-critical workloads. We use Oracle Database for transactional integrity and advanced analytics, and Oracle Cloud Infrastructure for compute, storage, and enterprise-grade networking — enabling high-availability deployments, disaster recovery, and regulatory-compliant operations.",
+      "highlights": [
+        "Oracle Database and Exadata for high-throughput OLTP",
+        "Oracle Cloud Infrastructure (OCI) compute, storage, and networking",
+        "Real Application Clusters (RAC) for high availability and zero-downtime failover",
+        "Advanced security, audit vault, and data encryption at rest and in transit",
+        "PL/SQL stored procedures and database-native business logic"
+      ]
+    },
+    {
+      "id": "google-cloud",
+      "name": "Google Cloud",
+      "categoryIds": ["cloud-infrastructure"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/googlecloud/googlecloud-original.svg",
+      "level": "Cloud Platform",
+      "description": "Google Cloud is a comprehensive cloud platform offering scalable compute, managed data services, and enterprise ML tooling. We use GCP to build global, auto-scaling backends, run containerized workloads on GKE, store structured and unstructured data in BigQuery and Cloud Storage, and deliver AI features via Vertex AI — all with strong IAM, VPC networking, and cost-optimization discipline.",
+      "highlights": [
+        "Compute Engine, GKE, and Cloud Run for elastic workloads",
+        "BigQuery and Cloud Storage for analytics and durable object storage",
+        "Vertex AI for managed ML training, deployment, and model monitoring",
+        "IAM, VPC Service Controls, and Cloud Armor for secure networking",
+        "Cloud Build and Cloud Deploy for CI/CD and reproducible releases"
+      ]
+    },
+    {
+      "id": "gcp",
+      "name": "GCP",
+      "categoryIds": ["cloud-infrastructure"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/googlecloud/googlecloud-original.svg",
+      "level": "Cloud Platform",
+      "description": "GCP (Google Cloud Platform) provides the building blocks for modern cloud-native applications. We use GCP's managed services to ship faster — serverless functions, managed databases, message queues, and observability — while relying on Google's global network for low-latency delivery to users anywhere in the world.",
+      "highlights": [
+        "Cloud Run and App Engine for serverless deployments",
+        "Cloud Functions for event-driven workloads",
+        "Pub/Sub for decoupled, scalable messaging",
+        "Cloud SQL, Firestore, and Spanner for managed data",
+        "Cloud Logging, Monitoring, and Trace for full observability"
+      ]
+    },
+    {
+      "id": "ci-cd",
+      "name": "CI/CD",
+      "categoryIds": ["devops-cicd"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/git/git-original.svg",
+      "level": "Continuous Delivery",
+      "description": "CI/CD is the practice of automating the build, test, and deployment of software to deliver changes quickly and safely. We design pipelines that run unit, integration, and end-to-end tests on every commit, enforce code-quality and security gates, and deploy to staging and production with rolling, blue-green, or canary strategies — reducing lead time and release risk.",
+      "highlights": [
+        "GitHub Actions, GitLab CI, and Jenkins pipelines",
+        "Automated unit, integration, and end-to-end testing gates",
+        "Static analysis, security scanning, and dependency checks",
+        "Blue-green and canary deployment strategies",
+        "Automated rollback and observability hooks"
+      ]
+    },
+    {
+      "id": "git-github",
+      "name": "Git & GitHub",
+      "categoryIds": ["devops-cicd"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg",
+      "level": "Version Control",
+      "description": "Git is the distributed version control system that underpins all modern software collaboration, and GitHub is its most widely adopted platform. We use Git branching strategies like GitFlow and trunk-based development to keep changes reviewable, enforce code ownership and review policies via pull requests, and integrate CI/CD directly into the development workflow.",
+      "highlights": [
+        "GitFlow and trunk-based branching strategies",
+        "Pull requests, code reviews, and CODEOWNERS enforcement",
+        "GitHub Actions for CI/CD and automation",
+        "Releases, tags, and semantic versioning",
+        "Branch protection rules and signed commits"
+      ]
+    },
+    {
+      "id": "docker",
+      "name": "Docker",
+      "categoryIds": ["devops-cicd", "cloud-infrastructure"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/docker/docker-original.svg",
+      "level": "Containerization",
+      "description": "Docker packages applications and their dependencies into portable containers that run identically across developer laptops, CI runners, and production clusters. We use multi-stage builds to keep images small, Compose for local multi-service development, and container registries for secure, versioned image distribution — the foundation for reproducible deployment.",
+      "highlights": [
+        "Multi-stage Dockerfiles for small, secure images",
+        "Docker Compose for local multi-service development",
+        "Private registries with image signing and scanning",
+        "Rootless containers and least-privilege runtime",
+        "Integration with Kubernetes and cloud container runtimes"
+      ]
+    },
+    {
+      "id": "containers",
+      "name": "Containers",
+      "categoryIds": ["devops-cicd", "cloud-infrastructure"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/docker/docker-original.svg",
+      "level": "Orchestration",
+      "description": "Container orchestration (primarily Kubernetes) schedules, scales, heals, and networks containers across clusters. We run production workloads on Kubernetes and managed services like GKE, leveraging Helm charts, autoscaling, rolling updates, and service mesh networking to deliver resilient, observable systems.",
+      "highlights": [
+        "Kubernetes clusters on GKE, EKS, or self-managed",
+        "Helm charts for templated, versioned deployments",
+        "Horizontal and vertical pod autoscaling",
+        "Rolling updates, health probes, and self-healing",
+        "Service mesh (Istio/Linkerd) for secure service-to-service traffic"
+      ]
+    },
+    {
+      "id": "firebase",
+      "name": "Firebase",
+      "categoryIds": ["cloud-infrastructure", "backend-enterprise"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/firebase/firebase-plain.svg",
+      "level": "Backend-as-a-Service",
+      "description": "Firebase is Google's backend-as-a-service platform providing realtime databases, authentication, hosting, and serverless functions. We use Firebase to ship features quickly — realtime sync with Firestore, secure auth with Firebase Auth, static and dynamic hosting, and Cloud Functions for event-driven logic — while keeping costs predictable and scaling with demand.",
+      "highlights": [
+        "Firestore and Realtime Database for realtime sync",
+        "Firebase Authentication with social and enterprise identity",
+        "Cloud Functions for serverless backend logic",
+        "Firebase Hosting with global CDN and SSL",
+        "Firebase Cloud Messaging for cross-platform push notifications"
+      ]
+    },
+    {
+      "id": "redis",
+      "name": "Redis",
+      "categoryIds": ["databases", "backend-enterprise"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/redis/redis-original.svg",
+      "level": "In-Memory Data Store",
+      "description": "Redis is a high-performance in-memory data store used for caching, session storage, real-time leaderboards, and pub/sub messaging. We use Redis to reduce database load, accelerate hot reads, and enable low-latency features like rate limiting and distributed locks — often paired with a durable primary database for persistence.",
+      "highlights": [
+        "Caching and session storage with sub-millisecond latency",
+        "Pub/Sub messaging and streams for event fan-out",
+        "Sorted sets for leaderboards and rate limiting",
+        "Distributed locks and atomic operations",
+        "High availability via Redis Sentinel and Cluster"
+      ]
+    },
+    {
+      "id": "kafka",
+      "name": "Kafka",
+      "categoryIds": ["backend-enterprise", "realtime-networking"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/apachekafka/apachekafka-original.svg",
+      "level": "Event Streaming",
+      "description": "Apache Kafka is a distributed event streaming platform for high-throughput, fault-tolerant data pipelines. We use Kafka to decouple services, power event-driven architectures, and stream data between producers and consumers with strong durability and ordering guarantees — enabling real-time analytics, change data capture, and reactive microservices.",
+      "highlights": [
+        "Event-driven microservice architectures",
+        "High-throughput topics with partitioning and replication",
+        "Consumer groups for parallel processing",
+        "Kafka Streams and ksqlDB for stream processing",
+        "Connect for CDC and external system integration"
+      ]
+    },
+    {
+      "id": "nginx",
+      "name": "NGINX",
+      "categoryIds": ["cloud-infrastructure", "realtime-networking"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nginx/nginx-original.svg",
+      "level": "Web Server & Proxy",
+      "description": "NGINX is a high-performance web server, reverse proxy, and load balancer. We use NGINX to terminate TLS, route traffic to backend services, serve static assets with aggressive caching, and balance load across instances — providing a reliable front door for our applications and APIs.",
+      "highlights": [
+        "Reverse proxy and load balancing across backends",
+        "TLS/SSL termination with modern cipher suites",
+        "Static asset serving with gzip/brotli and caching",
+        "Rate limiting, connection limits, and access control",
+        "Stream module for TCP/UDP proxying"
+      ]
+    },
+    {
+      "id": "firewall",
+      "name": "Firewall",
+      "categoryIds": ["security"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/linux/linux-original.svg",
+      "level": "Network Security",
+      "description": "Firewalls are the first line of network defense, controlling traffic between trusted and untrusted networks. We use cloud-native and host-based firewalls to enforce least-privilege access, isolate environments, and block malicious traffic — combined with WAF and DDoS protection for defense-in-depth.",
+      "highlights": [
+        "Packet filtering and stateful rule sets",
+        "Web Application Firewall (WAF) integration",
+        "DDoS mitigation and rate limiting",
+        "Network segmentation and zero-trust policies",
+        "Centralized logging and anomaly detection"
+      ]
+    },
+    {
+      "id": "jenkins",
+      "name": "Jenkins",
+      "categoryIds": ["devops-cicd"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/jenkins/jenkins-original.svg",
+      "level": "CI Automation",
+      "description": "Jenkins is an extensible automation server for building, testing, and deploying software. We use Jenkins pipelines-as-code to define reproducible CI/CD workflows, integrate with source control and container registries, and orchestrate complex multi-stage releases across environments.",
+      "highlights": [
+        "Pipeline-as-code with declarative Jenkinsfiles",
+        "Extensive plugin ecosystem for integrations",
+        "Distributed builds with agents and controllers",
+        "Parallel and matrix builds for fast feedback",
+        "Integration with Docker, Kubernetes, and cloud providers"
+      ]
+    },
+    {
+      "id": "deep-learning",
+      "name": "Deep Learning",
+      "categoryIds": ["ai-ml"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/tensorflow/tensorflow-original.svg",
+      "level": "Neural Networks",
+      "description": "Deep learning uses multi-layer neural networks to learn hierarchical representations from data. We apply CNNs for vision, RNNs and Transformers for sequence and language tasks, and transfer learning to bootstrap high-performing models from pretrained foundations — with careful evaluation, regularization, and deployment discipline.",
+      "highlights": [
+        "CNNs for image classification and detection",
+        "RNNs and Transformers for sequence modeling",
+        "Transfer learning from pretrained foundation models",
+        "Regularization, augmentation, and hyperparameter tuning",
+        "Model quantization and deployment to edge and cloud"
+      ]
+    },
+    {
+      "id": "machine-learning",
+      "name": "Machine Learning",
+      "categoryIds": ["ai-ml"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/tensorflow/tensorflow-original.svg",
+      "level": "Model Development",
+      "description": "Machine learning is the practice of building systems that improve from data. We cover the full ML lifecycle — data preparation, feature engineering, model selection, training, evaluation, and deployment — with a focus on reproducibility, monitoring, and alignment with real business metrics.",
+      "highlights": [
+        "Supervised and unsupervised learning",
+        "Feature engineering and data pipeline design",
+        "Model evaluation, cross-validation, and bias checks",
+        "Hyperparameter search and experiment tracking",
+        "Deployment, monitoring, and drift detection"
+      ]
+    },
+    {
+      "id": "tensorflow",
+      "name": "TensorFlow",
+      "categoryIds": ["ai-ml"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/tensorflow/tensorflow-original.svg",
+      "level": "ML Framework",
+      "description": "TensorFlow is Google's open-source framework for building and training machine learning models at scale. We use its Keras high-level API for fast iteration, TensorBoard for experiment visualization, TF Serving for production inference, and TF Lite for mobile and edge deployment.",
+      "highlights": [
+        "Keras high-level API for rapid prototyping",
+        "TensorBoard for experiment visualization",
+        "TF Serving for scalable production inference",
+        "TF Lite for mobile and edge deployment",
+        "Distributed training across GPUs and TPUs"
+      ]
+    },
+    {
+      "id": "matplotlib",
+      "name": "Matplotlib",
+      "categoryIds": ["ai-ml"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg",
+      "level": "Data Visualization",
+      "description": "Matplotlib is Python's foundational plotting library for creating static, animated, and interactive visualizations. We use it for exploratory data analysis, model evaluation reports, and scientific-quality figures — with fine-grained control over layout, styling, and annotation.",
+      "highlights": [
+        "Line, bar, scatter, and histogram plots",
+        "Custom styling, themes, and colormaps",
+        "Subplots and multi-panel figures",
+        "Annotations and publication-quality output",
+        "Seamless integration with NumPy and Pandas"
+      ]
+    },
+    {
+      "id": "tflight",
+      "name": "TF Lite",
+      "categoryIds": ["ai-ml", "mobile"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/tensorflow/tensorflow-original.svg",
+      "level": "On-Device ML",
+      "description": "TensorFlow Lite is a lightweight ML runtime for deploying models on mobile, embedded, and edge devices. We use TF Lite to run inference locally on Android and iOS, enabling low-latency, privacy-preserving, and offline-capable AI features.",
+      "highlights": [
+        "On-device inference for Android and iOS",
+        "Model quantization for smaller, faster models",
+        "GPU and NNAPI delegate acceleration",
+        "Offline and privacy-preserving AI features",
+        "Integration with Flutter and native SDKs"
+      ]
+    },
+    {
+      "id": "rag",
+      "name": "RAG",
+      "categoryIds": ["ai-ml"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/tensorflow/tensorflow-original.svg",
+      "level": "Retrieval-Augmented Generation",
+      "description": "Retrieval-Augmented Generation (RAG) combines vector search with large language models to ground AI responses in authoritative, up-to-date knowledge. We build RAG pipelines with embedding models, vector databases, and prompt construction strategies that reduce hallucinations and keep answers accurate and citable.",
+      "highlights": [
+        "Vector stores and embedding pipelines",
+        "Semantic retrieval and hybrid search",
+        "Prompt grounding and citation of sources",
+        "Chunking, reranking, and context windows",
+        "Evaluation of retrieval precision and answer quality"
+      ]
+    },
+    {
+      "id": "agentic-ai",
+      "name": "Agentic AI",
+      "categoryIds": ["ai-ml"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/tensorflow/tensorflow-original.svg",
+      "level": "Autonomous Agents",
+      "description": "Agentic AI systems plan, reason, and execute multi-step tasks autonomously with tools and memory. We build tool-calling agents, multi-agent orchestration pipelines, and reflection loops to automate complex workflows — with guardrails, observability, and human-in-the-loop checkpoints for safety.",
+      "highlights": [
+        "Tool-calling and function-executing agents",
+        "Multi-agent orchestration and delegation",
+        "Planning, reflection, and self-correction loops",
+        "Guardrails, sandboxing, and permissions",
+        "Tracing, evaluation, and human-in-the-loop review"
+      ]
+    },
+    {
+      "id": "generative-ai",
+      "name": "Generative AI",
+      "categoryIds": ["ai-ml"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/tensorflow/tensorflow-original.svg",
+      "level": "Content Generation",
+      "description": "Generative AI creates new text, images, code, and audio using LLMs and diffusion models. We integrate generative capabilities into products via APIs, fine-tuning, and LoRA adapters — while enforcing safety, moderation, and cost controls.",
+      "highlights": [
+        "LLM text generation and chat experiences",
+        "Diffusion models for image generation",
+        "Fine-tuning and LoRA adapter training",
+        "Content safety and moderation pipelines",
+        "Cost, latency, and token budget controls"
+      ]
+    },
+    {
+      "id": "llm",
+      "name": "LLM",
+      "categoryIds": ["ai-ml"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/tensorflow/tensorflow-original.svg",
+      "level": "Large Language Models",
+      "description": "Large Language Models are transformer-based neural networks capable of reasoning, generation, and conversation. We use LLMs for chat, summarization, extraction, and code assistance, and apply prompt engineering, structured outputs, and instruction tuning to make them reliable for production use.",
+      "highlights": [
+        "Prompt engineering and structured output",
+        "Tokenization, context windows, and truncation",
+        "Instruction tuning and fine-tuning",
+        "Structured outputs (JSON schema, function-calling)",
+        "Streaming, caching, and cost optimization"
+      ]
+    },
+    {
+      "id": "neural-network",
+      "name": "Neural Network",
+      "categoryIds": ["ai-ml"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/tensorflow/tensorflow-original.svg",
+      "level": "Foundation",
+      "description": "Neural networks are layered systems of neurons that learn representations directly from data. We design and train networks for classification, regression, and generation — with careful attention to architecture, initialization, regularization, and optimization.",
+      "highlights": [
+        "Backpropagation and gradient-based optimization",
+        "Activation functions and normalization layers",
+        "Regularization (dropout, weight decay)",
+        "Architecture design for vision, text, and tabular data",
+        "Debugging with loss curves and gradient checks"
+      ]
+    },
+    {
+      "id": "data-preprocessing",
+      "name": "Data Preprocessing",
+      "categoryIds": ["ai-ml"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg",
+      "level": "Data Engineering",
+      "description": "Data preprocessing transforms raw data into a clean, consistent form suitable for ML. We handle missing values, outliers, and inconsistencies; normalize and scale features; encode categorical variables; and construct reproducible pipelines that prevent train/test leakage.",
+      "highlights": [
+        "Missing value imputation strategies",
+        "Normalization, standardization, and scaling",
+        "Categorical encoding (one-hot, target, embeddings)",
+        "Outlier detection and handling",
+        "Reproducible pipelines with train/test isolation"
+      ]
+    },
+    {
+      "id": "model-training",
+      "name": "Model Training",
+      "categoryIds": ["ai-ml"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/tensorflow/tensorflow-original.svg",
+      "level": "ML Lifecycle",
+      "description": "Model training is the iterative process of fitting a model to data, validating performance, and tuning hyperparameters. We train with proper splits, cross-validation, and experiment tracking, and we balance compute cost against accuracy and generalization.",
+      "highlights": [
+        "Train/validation/test splits and cross-validation",
+        "Hyperparameter search (grid, random, Bayesian)",
+        "Experiment tracking with MLflow or W&B",
+        "Distributed training across GPUs and TPUs",
+        "Reproducibility via seeds and versioned data"
+      ]
+    },
+    {
+      "id": "computer-vision",
+      "name": "Computer Vision",
+      "categoryIds": ["ai-ml"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/opencv/opencv-original.svg",
+      "level": "Vision AI",
+      "description": "Computer vision enables machines to interpret images and video. We build classification, object detection, segmentation, and pose estimation pipelines using modern CNNs and Vision Transformers, and we optimize them for real-time inference on edge and cloud.",
+      "highlights": [
+        "Image classification with CNNs and ViTs",
+        "Object detection (YOLO, Faster R-CNN)",
+        "Semantic and instance segmentation",
+        "Pose estimation and keypoint detection",
+        "Real-time inference optimization"
+      ]
+    },
+    {
+      "id": "ocr",
+      "name": "OCR",
+      "categoryIds": ["ai-ml"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/tensorflow/tensorflow-original.svg",
+      "level": "Text Recognition",
+      "description": "Optical Character Recognition extracts text from images and PDFs, enabling document automation. We use modern OCR engines like Tesseract and EasyOCR combined with layout parsing to reliably extract structured data from invoices, IDs, and forms.",
+      "highlights": [
+        "Tesseract and EasyOCR engines",
+        "Handwriting recognition",
+        "Document layout and table parsing",
+        "Multi-language and multi-script support",
+        "Structured extraction with post-processing"
+      ]
+    },
+    {
+      "id": "nlp",
+      "name": "NLP",
+      "categoryIds": ["ai-ml"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg",
+      "level": "Language Processing",
+      "description": "Natural Language Processing enables machines to understand and generate human language. We build text classification, sentiment analysis, named entity recognition, and semantic search pipelines using modern embeddings and transformer models.",
+      "highlights": [
+        "Tokenization, embeddings, and semantic search",
+        "Sentiment analysis and text classification",
+        "Named entity recognition and relation extraction",
+        "Summarization and question answering",
+        "Multilingual and domain-specific fine-tuning"
+      ]
+    },
+    {
+      "id": "spring-boot",
+      "name": "Spring Boot",
+      "categoryIds": ["backend-enterprise"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/spring/spring-original.svg",
+      "level": "Enterprise Backend",
+      "description": "Spring Boot is the standard for production-ready Java backend services. It provides auto-configuration, embedded servers, and a rich ecosystem for building REST APIs, GraphQL endpoints, and microservices — with first-class support for security, data access, and observability.",
+      "highlights": [
+        "REST and GraphQL APIs",
+        "Spring Security for auth and authorization",
+        "Auto-configuration and embedded servers",
+        "Microservice patterns with Spring Cloud",
+        "Actuator metrics, health checks, and observability"
+      ]
+    },
+    {
+      "id": "flask",
+      "name": "Flask",
+      "categoryIds": ["backend-enterprise"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/flask/flask-original.svg",
+      "level": "Python Backend",
+      "description": "Flask is a lightweight Python web framework for building APIs and microservices. We use Flask for ML model serving, internal tools, and small-to-medium REST services — with extensions for ORM, validation, and auth when needed.",
+      "highlights": [
+        "Minimal REST APIs with blueprints",
+        "Jinja2 templating for server-rendered pages",
+        "Extension ecosystem (SQLAlchemy, Marshmallow)",
+        "ML model serving and inference endpoints",
+        "Lightweight microservices and internal tools"
+      ]
+    },
+    {
+      "id": "hibernate",
+      "name": "Hibernate",
+      "categoryIds": ["backend-enterprise", "databases"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/hibernate/hibernate-original.svg",
+      "level": "ORM Framework",
+      "description": "Hibernate is a mature ORM for Java that maps objects to relational tables. We use Hibernate to persist domain entities, manage relationships and transactions, and tune lazy loading and caching for performance.",
+      "highlights": [
+        "Entity mappings and relationship management",
+        "Lazy and eager loading strategies",
+        "First- and second-level caching",
+        "HQL and Criteria queries",
+        "Transaction and session management"
+      ]
+    },
+    {
+      "id": "spring-core",
+      "name": "Spring Core",
+      "categoryIds": ["backend-enterprise"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/spring/spring-original.svg",
+      "level": "Core Framework",
+      "description": "Spring Core provides the inversion-of-control (IoC) container and dependency injection foundation for all Spring applications. We use Spring Core to wire beans, manage lifecycles, and apply aspect-oriented programming for cross-cutting concerns.",
+      "highlights": [
+        "IoC container and dependency injection",
+        "Bean lifecycle and scoping",
+        "Aspect-oriented programming (AOP)",
+        "Event publishing and listening",
+        "Configuration with annotations and profiles"
+      ]
+    },
+    {
+      "id": "jpa",
+      "name": "JPA",
+      "categoryIds": ["backend-enterprise", "databases"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/hibernate/hibernate-original.svg",
+      "level": "Persistence API",
+      "description": "The Java Persistence API (JPA) standardizes object-relational mapping in Java. We use JPA (usually with Hibernate) to define entities, manage transactions, and query databases with JPQL in a portable, vendor-neutral way.",
+      "highlights": [
+        "Entity annotations and relationship mappings",
+        "EntityManager and repository patterns",
+        "JPQL queries and criteria API",
+        "Transaction management",
+        "Vendor portability across databases"
+      ]
+    },
+    {
+      "id": "jdbc",
+      "name": "JDBC",
+      "categoryIds": ["backend-enterprise", "databases"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/java/java-original.svg",
+      "level": "Database Access",
+      "description": "JDBC is the low-level Java API for executing SQL against relational databases. We use JDBC for fine-grained control over queries, batching, and connection pooling — and for scenarios where an ORM adds unnecessary overhead.",
+      "highlights": [
+        "Prepared statements and SQL injection prevention",
+        "Connection pooling with HikariCP",
+        "Batch inserts and updates",
+        "Stored procedure calls",
+        "Transaction and isolation control"
+      ]
+    },
+    {
+      "id": "servlet",
+      "name": "Servlet",
+      "categoryIds": ["backend-enterprise"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/java/java-original.svg",
+      "level": "Java Web",
+      "description": "Java Servlets are server-side components that handle HTTP requests and responses. We use servlets (often via Spring MVC) to build web endpoints with session management, filters, and listeners — the foundation of the Java web stack.",
+      "highlights": [
+        "HTTP request and response handling",
+        "Session management and cookies",
+        "Filter and listener chains",
+        "File uploads and streaming responses",
+        "Integration with Spring MVC and Boot"
+      ]
+    },
+    {
+      "id": "orm",
+      "name": "ORM",
+      "categoryIds": ["backend-enterprise", "databases"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/hibernate/hibernate-original.svg",
+      "level": "Data Mapping",
+      "description": "Object-Relational Mapping (ORM) bridges objects in application code and relational tables in the database. We apply ORM patterns to keep domain logic clean, map relationships explicitly, and avoid common pitfalls like N+1 queries and uncontrolled eager loading.",
+      "highlights": [
+        "Entity relationships (1-1, 1-N, N-N)",
+        "Change tracking and dirty checking",
+        "Query abstraction and pagination",
+        "N+1 query prevention strategies",
+        "Caching and performance tuning"
+      ]
+    },
+    {
+      "id": "expressjs",
+      "name": "ExpressJS",
+      "categoryIds": ["backend-enterprise"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/express/express-original.svg",
+      "level": "Node.js Backend",
+      "description": "Express is a fast, minimalist web framework for Node.js. We use Express to build REST APIs, middleware pipelines, and small-to-medium backend services where a lightweight, unopinionated foundation is ideal.",
+      "highlights": [
+        "Middleware pipeline and routing",
+        "REST API design and versioning",
+        "Error handling and validation",
+        "Integration with databases and ORMs",
+        "Static file serving and templating"
+      ]
+    },
+    {
+      "id": "mysql",
+      "name": "MySQL",
+      "categoryIds": ["databases"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mysql/mysql-original.svg",
+      "level": "Relational Database",
+      "description": "MySQL is one of the most widely used open-source relational databases. We use MySQL for OLTP workloads, reporting, and web applications — with strong ACID guarantees, replication, and clustering for availability.",
+      "highlights": [
+        "ACID transactions and InnoDB storage",
+        "Primary-replica replication",
+        "Partitioning and indexing strategies",
+        "Full-text search capabilities",
+        "Clustering with Group Replication"
+      ]
+    },
+    {
+      "id": "mongodb",
+      "name": "MongoDB",
+      "categoryIds": ["databases"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mongodb/mongodb-original.svg",
+      "level": "NoSQL Database",
+      "description": "MongoDB is a document-oriented NoSQL database with flexible schemas. We use MongoDB for content management, product catalogs, real-time analytics, and applications where evolving data shapes are common — with strong aggregation and horizontal scaling.",
+      "highlights": [
+        "BSON documents and flexible schemas",
+        "Aggregation pipelines for analytics",
+        "Sharding for horizontal scale",
+        "Replica sets for high availability",
+        "Change streams for reactive applications"
+      ]
+    },
+    {
+      "id": "postgresql",
+      "name": "PostgreSQL",
+      "categoryIds": ["databases"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/postgresql/postgresql-original.svg",
+      "level": "Relational Database",
+      "description": "PostgreSQL is an advanced open-source relational database known for standards compliance and extensibility. We use PostgreSQL for OLTP, geospatial data (PostGIS), JSON workloads (JSONB), and full-text search — often as the default choice for new projects.",
+      "highlights": [
+        "JSONB for semi-structured data",
+        "PostGIS for geospatial queries",
+        "Full-text search and indexing",
+        "Logical and physical replication",
+        "Extension ecosystem (pgvector, TimescaleDB, etc.)"
+      ]
+    },
+    {
+      "id": "hive",
+      "name": "Hive",
+      "categoryIds": ["databases", "ai-ml"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/hadoop/hadoop-original.svg",
+      "level": "Data Warehouse",
+      "description": "Apache Hive provides a SQL-like interface for querying large datasets stored in Hadoop. We use Hive for batch analytics, ETL, and data warehousing on distributed storage — pairing it with modern engines like Spark for performance.",
+      "highlights": [
+        "HiveQL query language for Hadoop",
+        "Partitioned and bucketed tables",
+        "Integration with Hadoop HDFS and Spark",
+        "ETL and batch processing workloads",
+        "Metadata management via Hive Metastore"
+      ]
+    },
+    {
+      "id": "oracledb",
+      "name": "OracleDB",
+      "categoryIds": ["databases"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/oracle/oracle-original.svg",
+      "level": "Enterprise Database",
+      "description": "Oracle Database is an enterprise-grade relational database designed for high availability, security, and performance. We use OracleDB for mission-critical workloads requiring strict transaction guarantees, advanced security, and proven scalability.",
+      "highlights": [
+        "PL/SQL stored procedures and packages",
+        "Real Application Clusters (RAC)",
+        "Advanced security and audit vault",
+        "Partitioning and in-memory column store",
+        "Data Guard for disaster recovery"
+      ]
+    },
+    {
+      "id": "mariadb",
+      "name": "MariaDB",
+      "categoryIds": ["databases"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mysql/mysql-original.svg",
+      "level": "Relational Database",
+      "description": "MariaDB is a community-developed fork of MySQL with performance improvements and additional storage engines. We use MariaDB as a drop-in MySQL replacement for web applications, with strong compatibility and open governance.",
+      "highlights": [
+        "MySQL compatibility with enhancements",
+        "Storage engines (Aria, InnoDB, ColumnStore)",
+        "Galera clustering for multi-primary",
+        "Open-source governance",
+        "Improved query optimizer"
+      ]
+    },
+    {
+      "id": "innodb",
+      "name": "InnoDB",
+      "categoryIds": ["databases"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mysql/mysql-original.svg",
+      "level": "Storage Engine",
+      "description": "InnoDB is the default ACID-compliant storage engine for MySQL and MariaDB. It provides row-level locking, foreign keys, and crash recovery — the foundation for reliable transactional workloads.",
+      "highlights": [
+        "Row-level locking for high concurrency",
+        "Foreign key constraints",
+        "Crash recovery and redo/undo logs",
+        "MVCC for consistent reads",
+        "Buffer pool tuning for performance"
+      ]
+    },
+    {
+      "id": "flutter",
+      "name": "Flutter",
+      "categoryIds": ["mobile", "frontend-web"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/flutter/flutter-original.svg",
+      "level": "Cross-Platform Mobile",
+      "description": "Flutter is Google's UI toolkit for building beautiful, high-performance mobile apps from a single Dart codebase. We use Flutter for iOS and Android (and web/desktop) to ship fast, consistent interfaces with expressive custom widgets and native platform integration.",
+      "highlights": [
+        "Single Dart codebase for iOS, Android, web, and desktop",
+        "Expressive custom widget and animation system",
+        "Native platform channels for device features",
+        "Hot reload for fast iteration",
+        "Consistent UI across platforms"
+      ]
+    },
+    {
+      "id": "dart",
+      "name": "Dart",
+      "categoryIds": ["mobile", "frontend-web"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/dart/dart-original.svg",
+      "level": "Programming Language",
+      "description": "Dart is the modern, strongly typed language powering Flutter. It supports null safety, async/await, streams, and ahead-of-time compilation to native code — enabling predictable performance across platforms.",
+      "highlights": [
+        "Null safety and strong typing",
+        "Async/await and streams",
+        "AOT and JIT compilation",
+        "Rich standard library",
+        "Seamless Flutter integration"
+      ]
+    },
+    {
+      "id": "kotlin",
+      "name": "Kotlin",
+      "categoryIds": ["mobile"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/kotlin/kotlin-original.svg",
+      "level": "Native Android",
+      "description": "Kotlin is the modern, concise language for native Android development. We use Kotlin with coroutines and Jetpack Compose to build responsive, maintainable apps with full access to the Android SDK and ecosystem.",
+      "highlights": [
+        "Coroutines and Flow for async programming",
+        "Jetpack Compose for declarative UI",
+        "Null safety by design",
+        "Seamless Java interoperability",
+        "Multiplatform Kotlin for shared logic"
+      ]
+    },
+    {
+      "id": "java-android",
+      "name": "Java Android",
+      "categoryIds": ["mobile"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/android/android-original.svg",
+      "level": "Native Android",
+      "description": "Java is the classic language for Android development, with a mature ecosystem, robust tooling, and broad library support. We maintain and extend Java-based Android apps alongside Kotlin for legacy and hybrid projects.",
+      "highlights": [
+        "Activity and fragment lifecycle",
+        "Android Views and XML layouts",
+        "Legacy and enterprise app support",
+        "Broad library ecosystem",
+        "Interop with Kotlin in the same project"
+      ]
+    },
+    {
+      "id": "cross-platform",
+      "name": "Cross Platform",
+      "categoryIds": ["mobile", "frontend-web"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/flutter/flutter-original.svg",
+      "level": "Multi-Platform",
+      "description": "Cross-platform development maximizes code reuse across iOS, Android, web, and desktop while preserving native-quality UX. We use Flutter and shared architecture to reduce cost and speed time-to-market without sacrificing performance.",
+      "highlights": [
+        "Shared business logic across platforms",
+        "Platform-adaptive UI",
+        "Faster time-to-market",
+        "Consistent experience",
+        "Native performance via AOT compilation"
+      ]
+    },
+    {
+      "id": "native-cpp",
+      "name": "Native C++",
+      "categoryIds": ["mobile"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/cplusplus/cplusplus-original.svg",
+      "level": "Native Performance",
+      "description": "C++ delivers low-level performance and control critical for graphics, game engines, and performance-sensitive mobile modules. We use the Android NDK and JNI to integrate C++ into mobile apps for CPU-bound workloads and cross-platform shared libraries.",
+      "highlights": [
+        "Android NDK and JNI integration",
+        "High-performance compute and graphics",
+        "Shared cross-platform native libraries",
+        "Memory and performance tuning",
+        "Interop with Kotlin and Java"
+      ]
+    },
+    {
+      "id": "android-studio",
+      "name": "Android Studio",
+      "categoryIds": ["mobile"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/androidstudio/androidstudio-original.svg",
+      "level": "IDE",
+      "description": "Android Studio is the official IDE for Android development, offering emulators, layout inspectors, profilers, and Gradle build tooling. Our Android team uses Android Studio for fast iteration, debugging, and performance profiling.",
+      "highlights": [
+        "Layout Inspector and Compose preview",
+        "Profiler for CPU, memory, and network",
+        "Emulators and device mirroring",
+        "Gradle build system integration",
+        "Deep code navigation and refactoring"
+      ]
+    },
+    {
+      "id": "reactjs",
+      "name": "ReactJS",
+      "categoryIds": ["frontend-web"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg",
+      "level": "Frontend Library",
+      "description": "React is the leading library for building interactive user interfaces with components. We use React with hooks, context, and modern state management to build scalable, maintainable frontends with strong ecosystem support.",
+      "highlights": [
+        "Component-based architecture",
+        "Hooks and context for state management",
+        "Virtual DOM and efficient rendering",
+        "Rich ecosystem and libraries",
+        "Server components via Next.js"
+      ]
+    },
+    {
+      "id": "nextjs",
+      "name": "Next.js",
+      "categoryIds": ["frontend-web"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nextjs/nextjs-original.svg",
+      "level": "Full-Stack Web",
+      "description": "Next.js is the production framework for React, with server-side rendering, static generation, API routes, and edge support. We use Next.js for high-performance, SEO-friendly, full-stack web apps — combining server components with client interactivity.",
+      "highlights": [
+        "SSR, SSG, and ISR rendering modes",
+        "App Router and server components",
+        "API routes and edge functions",
+        "Image and font optimization",
+        "Built-in performance and SEO features"
+      ]
+    },
+    {
+      "id": "typescript",
+      "name": "TypeScript",
+      "categoryIds": ["frontend-web", "backend-enterprise"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/typescript/typescript-original.svg",
+      "level": "Typed JavaScript",
+      "description": "TypeScript adds static typing to JavaScript, catching bugs at compile time and improving developer experience across large codebases. We use TypeScript across frontend and backend for safer refactors and richer IDE tooling.",
+      "highlights": [
+        "Static type checking and inference",
+        "Interfaces, generics, and utility types",
+        "Rich IDE support and refactoring",
+        "Gradual adoption over JavaScript",
+        "Strong integration with React and Node.js"
+      ]
+    },
+    {
+      "id": "javascript",
+      "name": "JavaScript",
+      "categoryIds": ["frontend-web", "backend-enterprise"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/javascript/javascript-original.svg",
+      "level": "Programming Language",
+      "description": "JavaScript is the language of the web, powering interactive frontends and Node.js backends. We write modern ES2023+ JavaScript with async/await, modules, and functional patterns, and TypeScript where stronger guarantees are needed.",
+      "highlights": [
+        "Modern ES2023+ features",
+        "Async/await and promises",
+        "Event loop and concurrency model",
+        "Modules and package ecosystem",
+        "Node.js and browser runtimes"
+      ]
+    },
+    {
+      "id": "tsx",
+      "name": "TSX",
+      "categoryIds": ["frontend-web"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg",
+      "level": "React + TypeScript",
+      "description": "TSX is the TypeScript extension for writing typed React components. We use TSX for type-safe props, state, and events — reducing runtime errors and improving team velocity in large React codebases.",
+      "highlights": [
+        "Typed props and state",
+        "JSX with static type checking",
+        "Type-safe event handlers",
+        "Improved refactoring confidence",
+        "Seamless React integration"
+      ]
+    },
+    {
+      "id": "xml",
+      "name": "XML",
+      "categoryIds": ["frontend-web", "mobile"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/xml/xml-original.svg",
+      "level": "Markup",
+      "description": "XML is a markup language for structured data, configuration, and Android layouts. We use XML for Android view layouts, configuration files, and standardized data interchange.",
+      "highlights": [
+        "Android layout XML",
+        "Configuration and manifest files",
+        "Structured data serialization",
+        "Schema validation (XSD)",
+        "XSLT transformation"
+      ]
+    },
+    {
+      "id": "json",
+      "name": "JSON",
+      "categoryIds": ["frontend-web", "backend-enterprise"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/json/json-original.svg",
+      "level": "Data Format",
+      "description": "JSON is the ubiquitous lightweight data-interchange format used across APIs, configs, and NoSQL databases. We work with JSON extensively for API payloads, configuration, and structured data — with schema validation where correctness matters.",
+      "highlights": [
+        "API request and response payloads",
+        "Configuration and manifests",
+        "NoSQL document storage",
+        "Schema validation (JSON Schema)",
+        "Streaming and parsing optimization"
+      ]
+    },
+    {
+      "id": "seo",
+      "name": "SEO",
+      "categoryIds": ["frontend-web"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/chrome/chrome-original.svg",
+      "level": "Search Optimization",
+      "description": "SEO (Search Engine Optimization) improves discoverability and ranking on search engines. We optimize technical SEO (crawlability, metadata, Core Web Vitals, structured data) alongside content strategy to drive organic traffic.",
+      "highlights": [
+        "Meta tags, sitemaps, and robots directives",
+        "Core Web Vitals and performance budgets",
+        "Structured data (Schema.org)",
+        "Server-side rendering for crawlability",
+        "Content and internal linking strategy"
+      ]
+    },
+    {
+      "id": "webrtc",
+      "name": "WebRTC",
+      "categoryIds": ["realtime-networking"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/webrtc/webrtc-original.svg",
+      "level": "Peer-to-Peer",
+      "description": "WebRTC enables low-latency, peer-to-peer audio, video, and data streaming directly in the browser. We use WebRTC for video calls, live collaboration, and real-time data channels — with STUN/TURN infrastructure for reliable connectivity.",
+      "highlights": [
+        "P2P audio and video streaming",
+        "Data channels for real-time messaging",
+        "STUN/TURN NAT traversal",
+        "Adaptive bitrate and codec negotiation",
+        "Secure by default (DTLS-SRTP)"
+      ]
+    },
+    {
+      "id": "websocket",
+      "name": "WebSocket",
+      "categoryIds": ["realtime-networking"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/socketio/socketio-original.svg",
+      "level": "Bidirectional Messaging",
+      "description": "WebSocket provides persistent, full-duplex communication channels over a single TCP connection. We use WebSocket for live chat, notifications, presence, and real-time dashboards — with reconnection, backpressure, and message ordering handled explicitly.",
+      "highlights": [
+        "Real-time bidirectional messaging",
+        "Low overhead vs. polling",
+        "Presence and notification systems",
+        "Reconnection and heartbeat handling",
+        "Backpressure and message ordering"
+      ]
+    },
+    {
+      "id": "p2p",
+      "name": "P2P",
+      "categoryIds": ["realtime-networking"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/webrtc/webrtc-original.svg",
+      "level": "Peer Networking",
+      "description": "Peer-to-peer (P2P) networking connects clients directly, reducing server load and latency. We use P2P via WebRTC data channels for file transfer, collaborative editing, and media streaming — with NAT traversal and fallbacks for restrictive networks.",
+      "highlights": [
+        "Direct peer data transfer",
+        "NAT traversal with ICE/STUN/TURN",
+        "Decentralized topologies",
+        "Lower server cost and latency",
+        "Secure channels with DTLS"
+      ]
+    },
+    {
+      "id": "streaming",
+      "name": "Streaming",
+      "categoryIds": ["realtime-networking"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/socketio/socketio-original.svg",
+      "level": "Media Delivery",
+      "description": "Streaming delivers live and on-demand audio/video with low latency and adaptive quality. We implement HLS and DASH streaming with adaptive bitrate, CDN distribution, and LL-HLS for interactive live use cases.",
+      "highlights": [
+        "HLS and DASH streaming",
+        "Low-latency streaming (LL-HLS)",
+        "Adaptive bitrate and quality selection",
+        "CDN distribution for scale",
+        "Live and on-demand playback"
+      ]
+    },
+    {
+      "id": "fcm",
+      "name": "FCM",
+      "categoryIds": ["realtime-networking", "mobile"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/firebase/firebase-plain.svg",
+      "level": "Push Notifications",
+      "description": "Firebase Cloud Messaging (FCM) delivers reliable push notifications across Android, iOS, and web. We use FCM for user engagement, transactional alerts, and topic-based broadcasts — with delivery tracking and fallback channels.",
+      "highlights": [
+        "Push notifications for Android, iOS, and web",
+        "Topic subscriptions and targeted messaging",
+        "Delivery receipts and analytics",
+        "Silent and data-only messages",
+        "Integration with Cloud Functions"
+      ]
+    },
+    {
+      "id": "turn-server",
+      "name": "TURN Server",
+      "categoryIds": ["realtime-networking"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nginx/nginx-original.svg",
+      "level": "NAT Traversal",
+      "description": "A TURN (Traversal Using Relays around NAT) server relays media when direct peer-to-peer connections fail. We deploy TURN servers with coturn and cloud relaying to guarantee WebRTC connectivity across restrictive firewalls and symmetric NATs.",
+      "highlights": [
+        "Relays media streams when P2P fails",
+        "Traverses strict firewalls and symmetric NATs",
+        "Scalable relay infrastructure (coturn)",
+        "Fallback for real-time connectivity",
+        "Bandwidth and security controls"
+      ]
+    },
+    {
+      "id": "stun-server",
+      "name": "STUN Server",
+      "categoryIds": ["realtime-networking"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nginx/nginx-original.svg",
+      "level": "NAT Traversal",
+      "description": "A STUN (Session Traversal Utilities for NAT) server helps peers discover their public IP and port, enabling direct P2P connections. We use STUN as the first step in WebRTC ICE to establish low-latency connections.",
+      "highlights": [
+        "NAT discovery and public IP resolution",
+        "WebRTC ICE candidate gathering",
+        "Enables direct peer-to-peer connections",
+        "Lightweight and stateless",
+        "Complements TURN fallback"
+      ]
+    },
+    {
+      "id": "udp",
+      "name": "UDP",
+      "categoryIds": ["realtime-networking"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/linux/linux-original.svg",
+      "level": "Transport Protocol",
+      "description": "UDP (User Datagram Protocol) is a connectionless transport with low latency and no built-in reliability. We use UDP for real-time media (WebRTC, QUIC) and streaming where timeliness matters more than guaranteed delivery.",
+      "highlights": [
+        "Connectionless, low-latency transport",
+        "Used in WebRTC and QUIC",
+        "Multicast and broadcast capable",
+        "Custom reliability where needed",
+        "Ideal for real-time media"
+      ]
+    },
+    {
+      "id": "rest-api",
+      "name": "REST API",
+      "categoryIds": ["backend-enterprise", "frontend-web"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nodejs/nodejs-original.svg",
+      "level": "API Architecture",
+      "description": "REST is a stateless, resource-oriented API architecture built on HTTP. We design REST APIs with consistent conventions, proper status codes, pagination, and versioning — documented with OpenAPI for robust client generation and testing.",
+      "highlights": [
+        "Resource-based endpoint design",
+        "HTTP verbs and status codes",
+        "JSON payloads and OpenAPI documentation",
+        "Pagination, filtering, and versioning",
+        "Authentication and rate limiting"
+      ]
+    },
+    {
+      "id": "jwt",
+      "name": "JWT",
+      "categoryIds": ["security", "backend-enterprise"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nodejs/nodejs-original.svg",
+      "level": "Authentication",
+      "description": "JSON Web Tokens (JWT) provide stateless authentication and authorization via signed tokens. We use JWTs for API access, single sign-on, and role-based authorization — with short expiry, refresh tokens, and revocation strategies.",
+      "highlights": [
+        "Signed and encrypted tokens",
+        "Role and permission claims",
+        "Stateless authentication",
+        "Refresh token rotation",
+        "Revocation and rotation strategies"
+      ]
+    },
+    {
+      "id": "ssl",
+      "name": "SSL",
+      "categoryIds": ["security"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nginx/nginx-original.svg",
+      "level": "Encryption",
+      "description": "SSL/TLS encrypts data in transit, protecting user credentials, tokens, and sensitive payloads. We enforce HTTPS everywhere, automate certificate management, and configure modern cipher suites to comply with security best practices.",
+      "highlights": [
+        "TLS encryption for all traffic",
+        "Automated certificate management (ACME)",
+        "Modern cipher suites and TLS 1.3",
+        "HSTS and secure cookie flags",
+        "mTLS for service-to-service auth"
+      ]
+    },
+    {
+      "id": "linux",
+      "name": "Linux",
+      "categoryIds": ["os-runtime", "cloud-infrastructure"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/linux/linux-original.svg",
+      "level": "Operating System",
+      "description": "Linux is the open-source operating system powering most of the cloud. We run production infrastructure, containers, and CI runners on Linux — with hardening, observability, and automation via systemd, shell scripting, and configuration management.",
+      "highlights": [
+        "Server and container host operating system",
+        "Systemd services and process management",
+        "Shell scripting and automation",
+        "Package management (apt, yum)",
+        "Hardening and security baselines"
+      ]
+    },
+    {
+      "id": "ubuntu",
+      "name": "Ubuntu",
+      "categoryIds": ["os-runtime", "cloud-infrastructure"],
+      "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/ubuntu/ubuntu-plain.svg",
+      "level": "Linux Distribution",
+      "description": "Ubuntu is the most widely used Debian-based Linux distribution for servers, cloud images, and developer workstations. We use Ubuntu LTS releases for stable, long-supported production systems with strong ecosystem and cloud image support.",
+      "highlights": [
+        "Long-term support (LTS) releases",
+        "APT package management",
+        "Cloud images and container base images",
+        "Wide ecosystem support",
+        "Predictable upgrade paths"
+      ]
+    }
+  ]
+}

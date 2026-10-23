@@ -1,0 +1,80 @@
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: [
+    "./app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./context/**/*.{js,ts,jsx,tsx,mdx}",
+  ],
+  darkMode: "class",
+  theme: {
+    extend: {
+      colors: {
+        spatial: {
+          bg: {
+            dark: "#0b0416",
+            darkSurface: "#120724",
+            darkGlass: "rgba(18, 7, 36, 0.72)",
+            light: "#faf8ff",
+            lightSurface: "#ffffff",
+            lightGlass: "rgba(255, 255, 255, 0.8)",
+          },
+          purple: {
+            50: "#faf5ff",
+            100: "#f3e8ff",
+            200: "#e9d5ff",
+            300: "#d8b4fe",
+            400: "#c084fc",
+            500: "#a855f7",
+            600: "#9333ea",
+            700: "#7e22ce",
+            800: "#6b21a8",
+            900: "#581c87",
+            950: "#3b0764",
+          },
+          border: {
+            dark: "rgba(255, 255, 255, 0.12)",
+            darkGlow: "rgba(168, 85, 247, 0.35)",
+            light: "rgba(147, 51, 234, 0.15)",
+            lightGlow: "rgba(147, 51, 234, 0.25)",
+          },
+        },
+        brand: {
+          50: "#faf5ff",
+          100: "#f3e8ff",
+          200: "#e9d5ff",
+          300: "#d8b4fe",
+          400: "#c084fc",
+          500: "#a855f7",
+          600: "#9333ea",
+          700: "#7e22ce",
+          800: "#6b21a8",
+          900: "#581c87",
+          950: "#3b0764",
+        },
+        accent: {
+          purple: "#9333ea",
+          violet: "#8b5cf6",
+          fuchsia: "#c026d3",
+          emerald: "#10b981",
+          amber: "#f59e0b",
+          rose: "#f43f5e",
+        },
+      },
+      boxShadow: {
+        "spatial-glass": "0 8px 32px 0 rgba(147, 51, 234, 0.16)",
+        "spatial-glow": "0 0 50px -5px rgba(168, 85, 247, 0.35)",
+        "spatial-glow-lg": "0 0 80px -10px rgba(168, 85, 247, 0.5)",
+        "spatial-card": "0 12px 40px -10px rgba(124, 58, 237, 0.22)",
+        "spatial-hover": "0 20px 50px -10px rgba(147, 51, 234, 0.45)",
+        "spatial-white": "0 4px 25px rgba(255, 255, 255, 0.15)",
+      },
+      backgroundImage: {
+        "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
+        "spatial-gradient-dark": "radial-gradient(ellipse at 50% -20%, #2e0854 0%, #120524 45%, #080210 100%)",
+        "spatial-gradient-light": "radial-gradient(ellipse at 50% -20%, #f3e8ff 0%, #faf5ff 50%, #ffffff 100%)",
+      },
+    },
+  },
+  plugins: [],
+};
