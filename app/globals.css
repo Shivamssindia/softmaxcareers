@@ -33,9 +33,15 @@ html.dark {
   --accent-light: rgba(99, 102, 241, 0.15);
 }
 
-/* Base Body Styles */
+/* Base HTML & Body Styles */
+html {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
 body {
   min-height: 100vh;
+  max-width: 100vw;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   overflow-x: hidden;
   transition: background-color 0.2s ease, color 0.2s ease;
@@ -192,4 +198,58 @@ html.light ::-webkit-scrollbar-thumb:hover {
 
 .animate-fade-in {
   animation: fadeIn 0.2s ease-out forwards;
+}
+
+/* ============================================================ */
+/* Word Document (.docx) Preview Theme & Contrast Isolation     */
+/* ============================================================ */
+.docx-preview-container .docx-wrapper {
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.docx-preview-container section.docx {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1) !important;
+  margin-bottom: 24px !important;
+  border-radius: 0.5rem;
+}
+
+.docx-preview-container section.docx p,
+.docx-preview-container section.docx span,
+.docx-preview-container section.docx h1,
+.docx-preview-container section.docx h2,
+.docx-preview-container section.docx h3,
+.docx-preview-container section.docx h4,
+.docx-preview-container section.docx td,
+.docx-preview-container section.docx th,
+.docx-preview-container section.docx li {
+  color: #0f172a !important;
+}
+
+/* ============================================================ */
+/* Responsive Table Container Utilities                         */
+/* ============================================================ */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Hide scrollbar for clean tab scrolling on mobile */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Listed Table Data Classes */
+.class-leadaxed {
+  line-height: 1.625;
+}
+.md-4 {
+  margin-bottom: 1rem;
 }

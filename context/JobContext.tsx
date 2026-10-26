@@ -20,6 +20,7 @@ import {
   deleteJobInFirestore,
   createApplicationInFirestore,
   getApplicationsFromFirestore,
+  deleteApplicationInFirestore,
   updateApplicationStatusInFirestore,
   saveContactMessageToFirestore,
   getContactMessagesFromFirestore,
@@ -39,6 +40,7 @@ interface JobContextType {
   addJob: (job: Omit<Job, "id" | "postedDate">) => Promise<string>;
   updateJob: (id: string, updatedJob: Partial<Job>) => Promise<void>;
   deleteJob: (id: string) => Promise<void>;
+  deleteApplication: (id: string) => Promise<void>;
   getJobById: (id: string) => Job | undefined;
   applyForJob: (
     applicationData: Omit<JobApplication, "id" | "appliedAt" | "status"> & {
@@ -262,7 +264,17 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // 10. Submit Contact Inquiry directly to Firestore (no API endpoint)
+  // 10. Delete Application directly in Firestore
+  const deleteApplication = async (id: string) => {
+    setApplications((prev) => prev.filter((app) => app.id !== id));
+    try {
+      await deleteApplicationInFirestore(id);
+    } catch (err) {
+      console.warn("deleteApplicationInFirestore notice:", err);
+    }
+  };
+
+  // 11. Submit Contact Inquiry directly to Firestore (no API endpoint)
   const submitContactMessage = async (
     messageData: Omit<ContactMessage, "id" | "submittedAt">
   ): Promise<string> => {
@@ -306,6 +318,7 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({
         addJob,
         updateJob,
         deleteJob,
+        deleteApplication,
         getJobById,
         applyForJob,
         updateApplicationStatus,

@@ -7,6 +7,7 @@ import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 import { useJobs } from "@/context/JobContext";
+import { useModal } from "@/context/ModalContext";
 import {
   User,
   Job,
@@ -45,15 +46,22 @@ import {
   Filter,
   RotateCcw,
   UserPlus,
+  Ban,
+  Download,
+  GraduationCap, // ✅ EXAM SYSTEM — ADDED
 } from "lucide-react";
+import {
+  ApprovalSyncModal,
+  ApprovalSyncStatus,
+} from "@/components/admin/ApprovalSyncModal";
+import {
+  ResumeViewerModal,
+  downloadResumeFile,
+} from "@/components/ResumeViewerModal";
 
 // ============================================================================
-// Consultant backend (direct browser call â€” no Next.js proxy)
+// Consultant payload shape (secret key now lives only on the server route)
 // ============================================================================
-const CONSULTANT_API_URL = process.env.CONSULTANT_API_URL;
-const CONSULTANT_API_KEY = process.env.CONSULTANT_API_KEY;
-
-// ---------- Local shape used to build the consultant payload ----------
 type ConsultantCandidateData = {
   uid?: string;
   name?: string;
@@ -73,6 +81,7 @@ type ConsultantCandidateData = {
 export default function AdminPage() {
   const router = useRouter();
   const { user, loading } = useAuth();
+  const { showAlert, showConfirm } = useModal();
   const {
     jobs,
     applications,
@@ -80,6 +89,7 @@ export default function AdminPage() {
     addJob,
     updateJob,
     deleteJob,
+    deleteApplication,
     updateApplicationStatus,
     refreshJobs,
     refreshApplications,
@@ -96,6 +106,50 @@ export default function AdminPage() {
   const [viewingResumeApp, setViewingResumeApp] = useState<(JobApplication & Record<string, any>) | null>(null);
   const [approvingAppId, setApprovingAppId] = useState<string | null>(null);
   const [rejectingAppId, setRejectingAppId] = useState<string | null>(null);
+  const [deletingAppId, setDeletingAppId] = useState<string | null>(null);
+
+  // Resume Viewer Window Modal State
+  const [resumeModalData, setResumeModalData] = useState<{
+    isOpen: boolean;
+    resumeUrl?: string | null;
+    fileName?: string | null;
+    candidateName?: string | null;
+    jobTitle?: string | null;
+    candidateEmail?: string | null;
+  }>({
+    isOpen: false,
+  });
+
+  const openResumeViewer = (data: {
+    resumeUrl?: string | null;
+    fileName?: string | null;
+    candidateName?: string | null;
+    jobTitle?: string | null;
+    candidateEmail?: string | null;
+  }) => {
+    setResumeModalData({
+      isOpen: true,
+      ...data,
+    });
+  };
+
+  // Approval Sync Modal State (Processing, Success & Warning)
+  const [approvalModalState, setApprovalModalState] = useState<{
+    isOpen: boolean;
+    status: ApprovalSyncStatus;
+    app: (JobApplication & Record<string, any>) | null;
+    candidateName: string;
+    candidateEmail?: string;
+    jobTitle: string;
+    errorDetails?: string;
+  }>({
+    isOpen: false,
+    status: "processing",
+    app: null,
+    candidateName: "",
+    candidateEmail: "",
+    jobTitle: "",
+  });
 
   // Application Filter States (Role, Status, Experience, Name)
   const [appNameFilter, setAppNameFilter] = useState("");
@@ -111,7 +165,7 @@ export default function AdminPage() {
   const [formLocation, setFormLocation] = useState("Bengaluru, India (Hybrid)");
   const [formType, setFormType] = useState<Job["type"]>("Full-time");
   const [formExperience, setFormExperience] = useState("3 - 5 Years");
-  const [formSalary, setFormSalary] = useState("â‚¹18,00,000 - â‚¹26,00,000 / year");
+  const [formSalary, setFormSalary] = useState("₹18,00,000 - ₹26,00,000 / year");
   const [formDesc, setFormDesc] = useState("");
   const [formResponsibilities, setFormResponsibilities] = useState("");
   const [formRequirements, setFormRequirements] = useState("");
@@ -148,7 +202,16 @@ export default function AdminPage() {
     const isCurrentAdmin = targetUser.role === "admin";
     const newRole = isCurrentAdmin ? "candidate" : "admin";
 
-    if (!window.confirm(`Change role of ${targetUser.name || (targetUser as any).displayName} to ${newRole.toUpperCase()}?`)) return;
+    const confirmed = await showConfirm(
+      `Change role of ${targetUser.name || (targetUser as any).displayName} to ${newRole.toUpperCase()}?`,
+      "Change User Role",
+      {
+        type: "warning",
+        confirmText: `Switch to ${newRole.toUpperCase()}`,
+        cancelText: "Cancel",
+      }
+    );
+    if (!confirmed) return;
 
     try {
       await updateUserInFirestore(targetUser.uid, {
@@ -158,7 +221,7 @@ export default function AdminPage() {
         prev.map((u) => (u.uid === targetUser.uid ? { ...u, role: newRole } : u))
       );
     } catch (err) {
-      alert("Failed to update user role.");
+      await showAlert("Failed to update user role.", "Error", "error");
     }
   };
 
@@ -168,7 +231,11 @@ export default function AdminPage() {
 
   const handleDeleteUser = async (targetUser: User) => {
     if (user && targetUser.uid === user.uid) {
-      alert("Security Protection: You cannot delete your own logged-in administrator account.");
+      await showAlert(
+        "Security Protection: You cannot delete your own logged-in administrator account.",
+        "Security Notice",
+        "warning"
+      );
       return;
     }
 
@@ -176,13 +243,16 @@ export default function AdminPage() {
       targetUser.name || (targetUser as any).displayName || targetUser.email || "this candidate";
     const roleLabel = targetUser.role === "admin" ? "Administrator" : "Candidate";
 
-    if (
-      !window.confirm(
-        `Are you sure you want to permanently delete ${roleLabel} "${displayName}" (${targetUser.email})?\n\nThis will remove their profile from the database. This action cannot be undone.`
-      )
-    ) {
-      return;
-    }
+    const confirmed = await showConfirm(
+      `Are you sure you want to permanently delete ${roleLabel} "${displayName}" (${targetUser.email})?\n\nThis will remove their profile from the database. This action cannot be undone.`,
+      "Delete User Profile",
+      {
+        type: "danger",
+        confirmText: "Yes, Delete Profile",
+        cancelText: "Keep User",
+      }
+    );
+    if (!confirmed) return;
 
     setDeletingUserId(targetUser.uid);
     try {
@@ -190,7 +260,7 @@ export default function AdminPage() {
       setUsersList((prev) => prev.filter((u) => u.uid !== targetUser.uid));
     } catch (err: any) {
       console.error("Failed to delete user:", err);
-      alert(err?.message || "Failed to delete candidate profile.");
+      await showAlert(err?.message || "Failed to delete candidate profile.", "Error", "error");
     } finally {
       setDeletingUserId(null);
     }
@@ -219,7 +289,7 @@ export default function AdminPage() {
     setFormLocation("Bengaluru, India (Hybrid)");
     setFormType("Full-time");
     setFormExperience("3 - 5 Years");
-    setFormSalary("â‚¹18,00,000 - â‚¹26,00,000 / year");
+    setFormSalary("₹18,00,000 - ₹26,00,000 / year");
     setFormDesc("");
     setFormResponsibilities("Ship clean, scalable software.\nCollaborate across technical specifications.");
     setFormRequirements("Strong problem solving.\nExperience with modern stacks.");
@@ -285,19 +355,58 @@ export default function AdminPage() {
       }
       setIsAddJobModalOpen(false);
     } catch (err: any) {
-      alert(err?.message || "Failed to save job opening.");
+      await showAlert(err?.message || "Failed to save job opening.", "Error", "error");
     }
   };
 
   const handleDeleteJob = async (id: string, title: string) => {
-    if (window.confirm(`Are you sure you want to delete job "${title}"?`)) {
-      await deleteJob(id);
+    const confirmed = await showConfirm(
+      `Are you sure you want to delete job "${title}"? This cannot be undone.`,
+      "Delete Job Opening",
+      {
+        type: "danger",
+        confirmText: "Yes, Delete Job",
+        cancelText: "Cancel",
+      }
+    );
+    if (confirmed) {
+      try {
+        await deleteJob(id);
+        await showAlert(`Job opening "${title}" has been deleted.`, "Job Deleted", "success");
+      } catch (err: any) {
+        await showAlert(err?.message || "Failed to delete job opening.", "Error", "error");
+      }
+    }
+  };
+
+  const handleToggleJobStatus = async (job: Job) => {
+    const nextStatus = job.status === "active" ? "closed" : "active";
+    const confirmed = await showConfirm(
+      `Are you sure you want to ${nextStatus === "closed" ? "close" : "reopen"} the opening for "${job.title}"? ${
+        nextStatus === "closed"
+          ? "It will still be visible in /openings but candidates will have the apply button disabled."
+          : "Candidates will now be able to apply."
+      }`,
+      nextStatus === "closed" ? "Close Job Opening" : "Reopen Job Opening",
+      {
+        type: nextStatus === "closed" ? "danger" : "info",
+        confirmText: nextStatus === "closed" ? "Yes, Close Job" : "Yes, Reopen Job",
+        cancelText: "Cancel",
+      }
+    );
+    if (confirmed) {
+      try {
+        await updateJob(job.id, { status: nextStatus });
+        await showAlert(`Job "${job.title}" is now marked as ${nextStatus}.`, "Status Updated", "success");
+      } catch (err: any) {
+        await showAlert(err?.message || "Failed to update job status.", "Error", "error");
+      }
     }
   };
 
   // ==========================================================================
-  // DIRECT CALL to Consultant API using axios (no Next.js route in between)
-  // Builds the exact payload your backend's /api/v1/external/consultant wants.
+  // SECURE CALL to Consultant API via our Next.js server route.
+  // The secret api key is NEVER sent by this client component.
   // ==========================================================================
   const syncCandidateToConsultant = async (
     application: JobApplication
@@ -314,7 +423,7 @@ export default function AdminPage() {
         profile = await getUserByEmailFromFirestore((application as any).candidateEmail);
       }
 
-      // 2) Build the payload — exact keys from your cURL
+      // 2) Build the payload — exact keys expected by the external backend
       const candidate: ConsultantCandidateData = {
         uid: profile?.uid || uidFromApp || application.id,
         name: profile?.name || (profile as any)?.displayName || (application as any).candidateName || "",
@@ -335,7 +444,7 @@ export default function AdminPage() {
         graduationMarks: Number((profile as any)?.graduationMarks ?? 0),
       };
 
-      // Sanity check required fields before hitting the backend
+      // Sanity check required fields before hitting the server route
       if (!candidate.uid || !candidate.name || !candidate.email) {
         return {
           ok: false,
@@ -344,19 +453,17 @@ export default function AdminPage() {
             "Ensure the user profile exists.",
         };
       }
-      console.log(`api: ${process.env.CONSULTANT_API_URL}/api/v1/external/consultant`)
-      // 3) Fire the request DIRECTLY from the browser via axios
-      const res = await axios.post(`${process.env.CONSULTANT_API_URL}/api/v1/external/consultant`, candidate, {
+
+      // 3) Call our Next.js server route (server-side fetch with secret key)
+      const res = await axios.post("/api/consultant", candidate, {
         headers: {
           "Content-Type": "application/json",
-          apikey: `${process.env.CONSULTANT_API_KEY}`
         },
       });
 
       console.log("[consultant] sync success:", res.status, res.data);
       return { ok: true };
     } catch (err: any) {
-      // axios puts HTTP errors on err.response; network/CORS errors have no response
       if (axios.isAxiosError(err)) {
         if (err.response) {
           const data = err.response.data as any;
@@ -369,7 +476,7 @@ export default function AdminPage() {
           ok: false,
           error:
             err.message ||
-            "Network connection error â€” check network and server availability.",
+            "Network connection error — check network and server availability.",
         };
       }
       return { ok: false, error: err?.message || "Unknown error calling Consultant service." };
@@ -380,37 +487,111 @@ export default function AdminPage() {
   // Application status handlers
   // ==========================================================================
   const handleApproveApplication = async (app: JobApplication) => {
+    const cand = usersList.find((u) => u.uid === app.uid);
+    const candName = (app as any).candidateName || cand?.name || (cand as any)?.displayName || "Candidate";
+    const candEmail = (app as any).candidateEmail || cand?.email || "";
+    const jobTitle = (app as any).jobTitle || jobs.find((j) => j.id === app.jobId)?.title || "Role Application";
+
     setApprovingAppId(app.id);
+
+    // 1) Open popup window immediately with processing effect
+    setApprovalModalState({
+      isOpen: true,
+      status: "processing",
+      app,
+      candidateName: candName,
+      candidateEmail: candEmail,
+      jobTitle,
+      errorDetails: undefined,
+    });
+
     try {
-      // 1) Commit local approval first
+      // 2) Commit local approval first
       await updateApplicationStatus(app.id, "Approved");
 
-      // 2) Direct consultant backend call
+      // 3) Secure server-side consultant backend call
       const result = await syncCandidateToConsultant(app);
 
-      if (!result.ok) {
-        console.error("[approve] consultant sync failed:", result.error);
-        alert(
-          `Application approved, but external consultant sync was unsuccessful:\n\n` +
-            `${result.error}\n\n` +
-            `Please check external consultant integration.`
-        );
-      }
-
-      // 3) Reflect status in the open review modal if present
+      // 4) Reflect status in the open review modal if present
       if (viewingResumeApp?.id === app.id) {
         setViewingResumeApp({ ...viewingResumeApp, status: "Approved" });
       }
+
+      // 5) Transition modal to success or warning based on external response
+      if (result.ok) {
+        setApprovalModalState((prev) => ({
+          ...prev,
+          status: "success",
+        }));
+      } else {
+        console.error("[approve] consultant sync failed:", result.error);
+        setApprovalModalState((prev) => ({
+          ...prev,
+          status: "warning",
+          errorDetails:
+            result.error ||
+            "The external consultant service returned an unconfirmed response. Please verify external service status.",
+        }));
+      }
     } catch (err: any) {
-      alert(err?.message || "Failed to approve application.");
+      console.error("[approve] unexpected error:", err);
+      setApprovalModalState((prev) => ({
+        ...prev,
+        status: "warning",
+        errorDetails:
+          err?.message || "Failed to communicate with external consultant service.",
+      }));
     } finally {
       setApprovingAppId(null);
     }
   };
 
+  const handleRetryApprovalSync = async () => {
+    if (!approvalModalState.app) return;
+    const targetApp = approvalModalState.app;
+
+    setApprovalModalState((prev) => ({
+      ...prev,
+      status: "processing",
+      errorDetails: undefined,
+    }));
+
+    try {
+      const result = await syncCandidateToConsultant(targetApp);
+      if (result.ok) {
+        setApprovalModalState((prev) => ({
+          ...prev,
+          status: "success",
+        }));
+      } else {
+        setApprovalModalState((prev) => ({
+          ...prev,
+          status: "warning",
+          errorDetails: result.error || "External consultant sync failed on retry.",
+        }));
+      }
+    } catch (err: any) {
+      setApprovalModalState((prev) => ({
+        ...prev,
+        status: "warning",
+        errorDetails: err?.message || "Retry attempt encountered a network error.",
+      }));
+    }
+  };
+
   const handleRejectApplication = async (app: JobApplication) => {
     const candName = (app as any).candidateName || usersList.find((u) => u.uid === app.uid)?.name || "Candidate";
-    if (!window.confirm(`Mark application from ${candName} as Rejected?`)) return;
+    const confirmed = await showConfirm(
+      `Mark application from ${candName} as Rejected?`,
+      "Reject Application",
+      {
+        type: "danger",
+        confirmText: "Mark Rejected",
+        cancelText: "Cancel",
+      }
+    );
+    if (!confirmed) return;
+
     setRejectingAppId(app.id);
     try {
       await updateApplicationStatus(app.id, "Rejected");
@@ -418,7 +599,7 @@ export default function AdminPage() {
         setViewingResumeApp({ ...viewingResumeApp, status: "Rejected" });
       }
     } catch (err: any) {
-      alert("Failed to reject application.");
+      await showAlert("Failed to reject application.", "Error", "error");
     } finally {
       setRejectingAppId(null);
     }
@@ -440,40 +621,96 @@ export default function AdminPage() {
       return;
     }
 
+    if (newStatus === "Cancelled") {
+      const candName = (app as any).candidateName || usersList.find((u) => u.uid === app.uid)?.name || "Candidate";
+      const confirmed = await showConfirm(
+        `Mark application from ${candName} as Cancelled?`,
+        "Cancel Application",
+        {
+          type: "danger",
+          confirmText: "Mark Cancelled",
+          cancelText: "Keep Status",
+        }
+      );
+      if (!confirmed) return;
+      try {
+        await updateApplicationStatus(app.id, "Cancelled");
+        if (viewingResumeApp?.id === app.id) {
+          setViewingResumeApp({ ...viewingResumeApp, status: "Cancelled" });
+        }
+      } catch (err: any) {
+        await showAlert("Failed to update application status.", "Error", "error");
+      }
+      return;
+    }
+
     if (newStatus === "Pending") {
       const candName = (app as any).candidateName || usersList.find((u) => u.uid === app.uid)?.name || "Candidate";
-      if (!window.confirm(`Switch status of application from ${candName} back to Pending?`)) {
-        return;
-      }
+      const confirmed = await showConfirm(
+        `Switch status of application from ${candName} back to Pending?`,
+        "Reactivate Application",
+        {
+          type: "warning",
+          confirmText: "Switch to Pending",
+          cancelText: "Cancel",
+        }
+      );
+      if (!confirmed) return;
+
       try {
         await updateApplicationStatus(app.id, "Pending");
         if (viewingResumeApp?.id === app.id) {
           setViewingResumeApp({ ...viewingResumeApp, status: "Pending" });
         }
       } catch (err: any) {
-        alert("Failed to update application status.");
+        await showAlert("Failed to update application status.", "Error", "error");
       }
     }
   };
 
   const handleDeleteApplication = async (id: string, name: string) => {
-    if (window.confirm(`Delete application submission for ${name}?`)) {
+    const confirmed = await showConfirm(
+      `Are you sure you want to delete the application for "${name}"? This action cannot be undone.`,
+      "Delete Application",
+      {
+        type: "danger",
+        confirmText: "Yes, Delete",
+        cancelText: "Cancel",
+      }
+    );
+    if (confirmed) {
+      setDeletingAppId(id);
       try {
-        await deleteApplicationInFirestore(id);
-        await refreshApplications();
+        if (deleteApplication) {
+          await deleteApplication(id);
+        } else {
+          await deleteApplicationInFirestore(id);
+          await refreshApplications();
+        }
       } catch (err) {
-        alert("Failed to delete application.");
+        await showAlert("Failed to delete application.", "Error", "error");
+      } finally {
+        setDeletingAppId(null);
       }
     }
   };
 
   const handleDeleteMessage = async (id: string) => {
-    if (window.confirm("Delete this contact inquiry?")) {
+    const confirmed = await showConfirm(
+      "Are you sure you want to delete this contact inquiry?",
+      "Delete Contact Message",
+      {
+        type: "danger",
+        confirmText: "Yes, Delete",
+        cancelText: "Cancel",
+      }
+    );
+    if (confirmed) {
       try {
         await deleteContactMessageFromFirestore(id);
         await refreshContactMessages();
       } catch (err) {
-        alert("Failed to delete contact message.");
+        await showAlert("Failed to delete contact message.", "Error", "error");
       }
     }
   };
@@ -588,16 +825,17 @@ export default function AdminPage() {
 
   const handleViewResume = (src?: string | null) => {
     if (!src) return;
-    if (src.startsWith("http://") || src.startsWith("https://")) {
-      window.open(src, "_blank", "noopener,noreferrer");
-      return;
-    }
-    const win = window.open();
-    if (win) {
-      win.document.write(
-        `<iframe src="${src}" frameborder="0" style="border:0; top:0; left:0; bottom:0; right:0; width:100%; height:100%;" allowfullscreen></iframe>`
-      );
-    }
+    openResumeViewer({
+      resumeUrl: src,
+      fileName: (viewingResumeApp as any)?.resumeFileName || "Candidate Resume.pdf",
+      candidateName:
+        (viewingResumeApp as any)?.candidateName ||
+        viewingCandidate?.name ||
+        (viewingCandidate as any)?.displayName ||
+        "Candidate",
+      jobTitle: (viewingResumeApp as any)?.jobTitle || viewingJob?.title || "Role Application",
+      candidateEmail: (viewingResumeApp as any)?.candidateEmail || viewingCandidate?.email,
+    });
   };
 
   if (loading || !user || user.role !== "admin") {
@@ -636,6 +874,15 @@ export default function AdminPage() {
             <span>Recruiter Candidate Upload</span>
           </Link>
 
+          {/* ✅ EXAM SYSTEM — ADDED: Exam Dashboard button */}
+          <Link
+            href="/exam/admin"
+            className="ui-btn-secondary text-xs font-semibold px-4 py-2.5 rounded-xl inline-flex items-center gap-1.5 shadow-sm border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-indigo-500 dark:hover:border-indigo-500 text-slate-700 dark:text-slate-200 transition"
+          >
+            <GraduationCap className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+            <span>Exam Dashboard</span>
+          </Link>
+
           <button
             type="button"
             onClick={openCreateModal}
@@ -648,7 +895,8 @@ export default function AdminPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* ✅ EXAM SYSTEM — ADDED: widened to lg:grid-cols-5 to fit Exam Center card */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
           <div className="text-xs font-semibold text-slate-400 uppercase">Total Openings</div>
           <div className="text-2xl font-extrabold text-slate-900 dark:text-white mt-1">
@@ -684,12 +932,26 @@ export default function AdminPage() {
           </div>
           <div className="text-[11px] text-slate-500 mt-1">Platform user accounts</div>
         </div>
+
+        {/* ✅ EXAM SYSTEM — ADDED: Exam Center card */}
+        <Link
+          href="/exam/admin"
+          className="p-5 rounded-2xl border border-indigo-200 dark:border-indigo-800 bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-950/40 dark:to-slate-900 shadow-sm hover:shadow-md transition group"
+        >
+          <div className="text-xs font-semibold text-indigo-500 uppercase inline-flex items-center gap-1">
+            <GraduationCap className="w-3 h-3" />
+            Exam Center
+          </div>
+          <div className="text-2xl font-extrabold text-indigo-700 dark:text-indigo-300 mt-1 group-hover:scale-105 transition-transform inline-block">
+            →
+          </div>
+          <div className="text-[11px] text-indigo-500/80 mt-1">Manage exams & enrollments</div>
+        </Link>
       </div>
 
       {/* Tabs */}
       <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl w-fit">
-        <button
-          onClick={() => setActiveTab("jobs")}
+        <button          onClick={() => setActiveTab("jobs")}
           className={`px-3.5 py-2 rounded-lg text-xs font-semibold transition ${
             activeTab === "jobs"
               ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm"
@@ -767,7 +1029,7 @@ export default function AdminPage() {
                     <tr key={job.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-850">
                       <td className="p-3.5">
                         <div className="font-bold text-slate-900 dark:text-white">{job.title}</div>
-                        <div className="text-[11px] text-slate-500">{job.salaryRange}</div>
+                        <div className="text-[11px] text-slate-500 leading-relaxed mb-4 line-clamp-1 class-leadaxed md-4">{job.salaryRange}</div>
                       </td>
                       <td className="p-3.5 text-slate-600 dark:text-slate-300">{job.department}</td>
                       <td className="p-3.5">
@@ -783,25 +1045,43 @@ export default function AdminPage() {
                       </td>
                       <td className="p-3.5 text-slate-500">{job.type}</td>
                       <td className="p-3.5">
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                            job.status === "active"
-                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
-                              : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
-                          }`}
-                        >
-                          {job.status}
-                        </span>
-                      </td>
-                      <td className="p-3.5 text-right">
                         <button
-                          onClick={() => openEditModal(job)}
-                          className="p-1.5 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-800 inline-flex items-center gap-1"
-                          title="Edit Job"
+                          type="button"
+                          onClick={() => handleToggleJobStatus(job)}
+                          className={`px-2.5 py-1 rounded-full text-[10px] font-semibold transition hover:scale-105 active:scale-95 inline-flex items-center gap-1.5 ${
+                            job.status === "active"
+                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
+                              : "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 border border-rose-200 dark:border-rose-800"
+                          }`}
+                          title={`Click to ${job.status === "active" ? "close" : "reopen"} this job opening`}
                         >
-                          <Edit className="w-3.5 h-3.5" />
-                          <span className="text-xs">Edit</span>
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              job.status === "active" ? "bg-emerald-500 animate-pulse" : "bg-rose-500"
+                            }`}
+                          />
+                          <span className="capitalize">{job.status}</span>
                         </button>
+                      </td>
+                      <td className="p-3.5 text-right whitespace-nowrap">
+                        <div className="inline-flex items-center gap-1 justify-end">
+                          <button
+                            onClick={() => openEditModal(job)}
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-800 inline-flex items-center gap-1 transition"
+                            title="Edit Job"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                            <span className="text-xs">Edit</span>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteJob(job.id, job.title)}
+                            className="p-1.5 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 inline-flex items-center gap-1 transition"
+                            title="Delete Job"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span className="text-xs">Delete</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -901,6 +1181,7 @@ export default function AdminPage() {
                   <option value="Pending">Pending</option>
                   <option value="Approved">Approved</option>
                   <option value="Rejected">Rejected</option>
+                  <option value="Cancelled">Cancelled</option>
                 </select>
               </div>
 
@@ -971,18 +1252,28 @@ export default function AdminPage() {
                       const candEmail = (app as any).candidateEmail || cand?.email || "—";
                       const candPhone = (app as any).candidatePhone || cand?.phone || "";
                       const roleTitle = (app as any).jobTitle || jobs.find((j) => j.id === app.jobId)?.title || "Role Application";
+                      const appResume =
+                        (app as any).resumeUrl ||
+                        (app as any).resumeDataUrl ||
+                        cand?.resumeUrl ||
+                        (cand as any)?.resumeData ||
+                        null;
+                      const appResumeName =
+                        (app as any).resumeFileName ||
+                        cand?.resumeFileName ||
+                        `${candName} - Resume.pdf`;
                       return (
                       <tr key={app.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-850">
                         <td className="p-3.5">
                           <div className="font-bold text-slate-900 dark:text-white">{candName}</div>
-                          <div className="text-[11px] text-slate-500">{candEmail}</div>
+                          <div className="text-[11px] text-slate-500 leading-relaxed mb-4 line-clamp-1 class-leadaxed md-4">{candEmail}</div>
                           {candPhone && (
                             <div className="text-[11px] text-slate-400">{candPhone}</div>
                           )}
                         </td>
                         <td className="p-3.5">
                           <div className="font-medium text-slate-900 dark:text-white">{roleTitle}</div>
-                          <div className="text-[11px] text-slate-400">Exp: {app.experienceYears}</div>
+                          <div className="text-[11px] text-slate-400 leading-relaxed mb-4 line-clamp-1 class-leadaxed md-4">Exp: {app.experienceYears}</div>
                         </td>
                         <td className="p-3.5">
                           <span
@@ -991,6 +1282,8 @@ export default function AdminPage() {
                                 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
                                 : app.status === "Rejected"
                                 ? "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300"
+                                : app.status === "Cancelled"
+                                ? "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-300 dark:border-slate-700"
                                 : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
                             }`}
                           >
@@ -1000,31 +1293,46 @@ export default function AdminPage() {
                         <td className="p-3.5 text-slate-500">
                           {app.appliedAt ? new Date(app.appliedAt).toLocaleDateString() : "Recent"}
                         </td>
-                        <td className="p-3.5 text-right space-x-1.5">
-                          <button
-                            onClick={() => setViewingResumeApp(app)}
-                            className="ui-btn-secondary px-2.5 py-1 text-xs font-semibold rounded-lg"
-                          >
-                            Review
-                          </button>
-                          {app.status === "Pending" && (
-                            <>
+                        <td className="p-3.5 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            {appResume && (
                               <button
-                                disabled={approvingAppId === app.id}
-                                onClick={() => handleApproveApplication(app)}
-                                className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                                type="button"
+                                onClick={() =>
+                                  openResumeViewer({
+                                    resumeUrl: appResume,
+                                    fileName: appResumeName,
+                                    candidateName: candName,
+                                    jobTitle: roleTitle,
+                                    candidateEmail: candEmail,
+                                  })
+                                }
+                                className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:text-indigo-300 dark:hover:bg-indigo-900/60 border border-indigo-200 dark:border-indigo-800/60 inline-flex items-center gap-1 transition shadow-xs"
+                                title="Open resume window"
                               >
-                                {approvingAppId === app.id ? "Syncing..." : "Approve"}
+                                <FileText className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                                <span>Resume</span>
                               </button>
-                              <button
-                                disabled={rejectingAppId === app.id}
-                                onClick={() => handleRejectApplication(app)}
-                                className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-50"
-                              >
-                                Reject
-                              </button>
-                            </>
-                          )}
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => setViewingResumeApp(app)}
+                              className="ui-btn-secondary px-2.5 py-1 text-xs font-semibold rounded-lg hover:border-indigo-400 transition inline-flex items-center gap-1"
+                            >
+                              Review
+                            </button>
+                            
+                            <button
+                              type="button"
+                              disabled={deletingAppId === app.id}
+                              onClick={() => handleDeleteApplication(app.id, candName)}
+                              className="px-2.5 py-1 rounded-lg text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-rose-200/60 dark:border-rose-900/40 transition inline-flex items-center gap-1 text-xs font-semibold disabled:opacity-40"
+                              title="Delete application"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>{deletingAppId === app.id ? "Deleting..." : "Delete"}</span>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -1056,14 +1364,14 @@ export default function AdminPage() {
                   <tr key={msg.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-850">
                     <td className="p-3.5">
                       <div className="font-bold text-slate-900 dark:text-white">{msg.name}</div>
-                      <div className="text-[11px] text-slate-500">{msg.email}</div>
+                      <div className="text-[11px] text-slate-500 leading-relaxed mb-4 line-clamp-1 class-leadaxed md-4">{msg.email}</div>
                       {msg.phone && <div className="text-[11px] text-slate-400">{msg.phone}</div>}
                     </td>
                     <td className="p-3.5 text-indigo-600 dark:text-indigo-400 font-medium">
                       {msg.service}
                     </td>
-                    <td className="p-3.5 max-w-sm truncate text-slate-600 dark:text-slate-300">
-                      {msg.message}
+                    <td className="p-3.5 max-w-sm text-slate-600 dark:text-slate-300">
+                      <div className="leading-relaxed mb-4 line-clamp-1 class-leadaxed md-4">{msg.message}</div>
                     </td>
                     <td className="p-3.5 text-slate-500">
                       {msg.submittedAt ? new Date(msg.submittedAt).toLocaleDateString() : "Recent"}
@@ -1143,7 +1451,7 @@ export default function AdminPage() {
                           <div className="font-bold text-slate-900 dark:text-white">
                             {u.name || (u as any).displayName || "User"}
                           </div>
-                          <div className="text-[11px] text-slate-400">{u.title || "User"}</div>
+                          <div className="text-[11px] text-slate-400 leading-relaxed mb-4 line-clamp-1 class-leadaxed md-4">{u.title || "User"}</div>
                         </td>
                         <td className="p-3.5 text-slate-600 dark:text-slate-300">{u.email}</td>
                         <td className="p-3.5">
@@ -1162,6 +1470,26 @@ export default function AdminPage() {
                         </td>
                         <td className="p-3.5 text-right">
                           <div className="flex items-center justify-end gap-2">
+                            {(u.resumeUrl || (u as any).resumeData) && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  openResumeViewer({
+                                    resumeUrl: u.resumeUrl || (u as any).resumeData,
+                                    fileName: u.resumeFileName || `${u.name || "Candidate"} - Resume.pdf`,
+                                    candidateName: u.name || (u as any).displayName || "Candidate",
+                                    candidateEmail: u.email,
+                                    jobTitle: u.title || "Registered Candidate",
+                                  })
+                                }
+                                className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:text-indigo-300 dark:hover:bg-indigo-900/60 border border-indigo-200 dark:border-indigo-800/60 inline-flex items-center gap-1 transition shadow-xs"
+                                title="Open candidate resume window"
+                              >
+                                <FileText className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                                <span>Resume</span>
+                              </button>
+                            )}
+
                             <button
                               onClick={() => handleToggleUserRole(u)}
                               className="ui-btn-secondary px-2.5 py-1 text-xs font-semibold rounded-lg hover:border-indigo-400 transition"
@@ -1257,16 +1585,13 @@ export default function AdminPage() {
                     onChange={(e) => setFormDept(e.target.value as DepartmentType)}
                     className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
                   >
-                    <option value="Web Development">Web Development</option>
-                    <option value="System Design">System Design</option>
-                    <option value="Software Engineering">Software Engineering</option>
-                    <option value="Cloud & DevOps">Cloud & DevOps</option>
-                    <option value="UI/UX Design">UI/UX Design</option>
-                    <option value="AI & Data">AI & Data</option>
+                    <option value="">Select Department</option>
+                    <option value="Head">Head</option>
+                    <option value="Human Resources">Human Resources</option>
+                    <option value="Business Developement">Business Developement</option>
+                    <option value="Finencial">Finencial</option>
+                    <option value="AI & Software Engineering">AI & Software Engineering</option>
                     <option value="IT Project Management">IT Project Management</option>
-                    <option value="Business Analysis & Consulting">Business Analysis & Consulting</option>
-                    <option value="Talent Acquisition & HR">Talent Acquisition & HR</option>
-                    <option value="Sales & Client Relations">Sales & Client Relations</option>
                   </select>
                 </div>
               </div>
@@ -1319,7 +1644,7 @@ export default function AdminPage() {
                     required
                     value={formSalary}
                     onChange={(e) => setFormSalary(e.target.value)}
-                    placeholder="â‚¹18,00,000 - â‚¹26,00,000 / year"
+                    placeholder="₹18,00,000 - ₹26,00,000 / year"
                     className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
                   />
                 </div>
@@ -1375,8 +1700,8 @@ export default function AdminPage() {
                   onChange={(e) => setFormStatus(e.target.value as "active" | "closed")}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
                 >
-                  <option value="active">Active (Visible on job board)</option>
-                  <option value="closed">Closed (Hidden)</option>
+                  <option value="active">Active (Open for applications on job board)</option>
+                  <option value="closed">Closed (Visible on /openings with Apply disabled)</option>
                 </select>
               </div>
 
@@ -1476,30 +1801,53 @@ export default function AdminPage() {
               </div>
 
               {((viewingResumeApp as any).resumeFileName || viewingResumeUrl) && (
-                <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex items-center justify-between">
-                  <div className="flex items-center gap-2 truncate">
-                    <FileText className="w-4 h-4 text-indigo-500 flex-shrink-0" />
-                    <span className="font-medium truncate">
-                      {(viewingResumeApp as any).resumeFileName || "Candidate Resume"}
-                    </span>
+                <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5 truncate">
+                    <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 flex items-center justify-center flex-shrink-0">
+                      <FileText className="w-4 h-4" />
+                    </div>
+                    <div className="truncate">
+                      <span className="font-semibold text-slate-900 dark:text-white truncate block text-xs">
+                        {(viewingResumeApp as any).resumeFileName || "Candidate Resume.pdf"}
+                      </span>
+                      <span className="text-[11px] text-slate-400">Attached resume document</span>
+                    </div>
                   </div>
                   {viewingResumeUrl && (
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <button
                         type="button"
-                        onClick={() => handleViewResume(viewingResumeUrl)}
-                        className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold hover:underline inline-flex items-center gap-1"
+                        onClick={() =>
+                          openResumeViewer({
+                            resumeUrl: viewingResumeUrl,
+                            fileName: (viewingResumeApp as any).resumeFileName || "Candidate Resume.pdf",
+                            candidateName:
+                              (viewingResumeApp as any).candidateName ||
+                              viewingCandidate?.name ||
+                              (viewingCandidate as any)?.displayName ||
+                              "Candidate",
+                            jobTitle: (viewingResumeApp as any).jobTitle || viewingJob?.title || "Role Application",
+                            candidateEmail: (viewingResumeApp as any).candidateEmail || viewingCandidate?.email,
+                          })
+                        }
+                        className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs inline-flex items-center gap-1.5 transition shadow-sm hover:scale-105 active:scale-95"
                       >
-                        <span>View</span>
-                        <ExternalLink className="w-3 h-3" />
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>View Resume</span>
                       </button>
-                      <a
-                        href={viewingResumeUrl}
-                        download={(viewingResumeApp as any).resumeFileName || "resume.pdf"}
-                        className="text-xs text-slate-600 dark:text-slate-300 font-semibold hover:underline ml-2"
+                      <button
+                        type="button"
+                        onClick={() =>
+                          downloadResumeFile(
+                            viewingResumeUrl,
+                            (viewingResumeApp as any).resumeFileName || "resume.pdf"
+                          )
+                        }
+                        className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-850 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs font-semibold inline-flex items-center gap-1 transition"
                       >
-                        Download
-                      </a>
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Download</span>
+                      </button>
                     </div>
                   )}
                 </div>
@@ -1507,80 +1855,123 @@ export default function AdminPage() {
 
               {/* Status & Switch Status Action Buttons */}
               <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
+                <div className="flex items-center justify-between gap-3 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
                   <div className="flex items-center gap-2">
-                    <span className="text-slate-500 font-medium">Status:</span>
+                    <span className="text-slate-500 font-medium">Application Status:</span>
                     <span
                       className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                         viewingResumeApp.status === "Approved"
                           ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
                           : viewingResumeApp.status === "Rejected"
                           ? "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300"
+                          : viewingResumeApp.status === "Cancelled"
+                          ? "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-300 dark:border-slate-700"
                           : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
                       }`}
                     >
                       {viewingResumeApp.status}
                     </span>
                   </div>
-
-                  <div className="flex items-center gap-2">
-                    <label htmlFor="switch-status-select" className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                      Switch Status:
-                    </label>
-                    <select
-                      id="switch-status-select"
-                      value={viewingResumeApp.status}
-                      disabled={approvingAppId === viewingResumeApp.id || rejectingAppId === viewingResumeApp.id}
-                      onChange={(e) => handleSwitchStatus(viewingResumeApp, e.target.value as ApplicationStatus)}
-                      className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    >
-                      <option value="Pending">Pending</option>
-                      <option value="Approved">Approved</option>
-                      <option value="Rejected">Rejected</option>
-                    </select>
-                  </div>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
-                  {viewingResumeApp.status !== "Approved" && (
-                    <button
-                      type="button"
-                      onClick={() => handleSwitchStatus(viewingResumeApp, "Approved")}
-                      disabled={approvingAppId === viewingResumeApp.id}
-                      className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700 disabled:opacity-50 text-xs inline-flex items-center gap-1.5"
-                    >
-                      <CheckCircle className="w-3.5 h-3.5" />
-                      <span>{approvingAppId === viewingResumeApp.id ? "Syncing..." : "Switch to Approved"}</span>
-                    </button>
-                  )}
-                  {viewingResumeApp.status !== "Rejected" && (
-                    <button
-                      type="button"
-                      onClick={() => handleSwitchStatus(viewingResumeApp, "Rejected")}
-                      disabled={rejectingAppId === viewingResumeApp.id}
-                      className="px-3 py-1.5 rounded-lg bg-rose-600 text-white font-semibold hover:bg-rose-700 disabled:opacity-50 text-xs inline-flex items-center gap-1.5"
-                    >
-                      <XCircle className="w-3.5 h-3.5" />
-                      <span>Switch to Rejected</span>
-                    </button>
-                  )}
-                  {viewingResumeApp.status !== "Pending" && (
-                    <button
-                      type="button"
-                      onClick={() => handleSwitchStatus(viewingResumeApp, "Pending")}
-                      className="px-3 py-1.5 rounded-lg bg-amber-500 text-white font-semibold hover:bg-amber-600 text-xs inline-flex items-center gap-1.5"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                      <span>Switch to Pending</span>
-                    </button>
-                  )}
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                   <button
                     type="button"
-                    onClick={() => setViewingResumeApp(null)}
-                    className="ui-btn-secondary px-3 py-1.5 font-semibold rounded-lg text-xs hover:scale-105 active:scale-95 transition-transform"
+                    disabled={deletingAppId === viewingResumeApp.id}
+                    onClick={async () => {
+                      const cand = usersList.find((u) => u.uid === viewingResumeApp.uid);
+                      const cName = (viewingResumeApp as any).candidateName || cand?.name || (cand as any)?.displayName || "Candidate";
+                      const confirmed = await showConfirm(
+                        `Are you sure you want to delete the application for "${cName}"? This action cannot be undone.`,
+                        "Delete Application",
+                        {
+                          type: "danger",
+                          confirmText: "Yes, Delete",
+                          cancelText: "Cancel",
+                        }
+                      );
+                      if (confirmed) {
+                        setDeletingAppId(viewingResumeApp.id);
+                        try {
+                          if (deleteApplication) {
+                            await deleteApplication(viewingResumeApp.id);
+                          } else {
+                            await deleteApplicationInFirestore(viewingResumeApp.id);
+                            await refreshApplications();
+                          }
+                          setViewingResumeApp(null);
+                        } catch (err) {
+                          await showAlert("Failed to delete application.", "Error", "error");
+                        } finally {
+                          setDeletingAppId(null);
+                        }
+                      }
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/40 font-semibold text-xs inline-flex items-center gap-1.5 transition disabled:opacity-50"
                   >
-                    Close
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>{deletingAppId === viewingResumeApp.id ? "Deleting..." : "Delete Application"}</span>
                   </button>
+
+                  <div className="flex flex-wrap items-center justify-end gap-2 ml-auto">
+                    {/* First pending logic: initial decision if Pending */}
+                    {viewingResumeApp.status === "Pending" && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleApproveApplication(viewingResumeApp)}
+                          disabled={approvingAppId === viewingResumeApp.id}
+                          className="px-3.5 py-1.5 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700 disabled:opacity-50 text-xs inline-flex items-center gap-1.5"
+                        >
+                          <CheckCircle className="w-3.5 h-3.5" />
+                          <span>{approvingAppId === viewingResumeApp.id ? "Syncing..." : "Approve Application"}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRejectApplication(viewingResumeApp)}
+                          disabled={rejectingAppId === viewingResumeApp.id}
+                          className="px-3.5 py-1.5 rounded-lg bg-rose-600 text-white font-semibold hover:bg-rose-700 disabled:opacity-50 text-xs inline-flex items-center gap-1.5"
+                        >
+                          <XCircle className="w-3.5 h-3.5" />
+                          <span>Reject Application</span>
+                        </button>
+                      </>
+                    )}
+
+                    {/* Only one button: Switch Approved to Rejected */}
+                    {viewingResumeApp.status === "Approved" && (
+                      <button
+                        type="button"
+                        onClick={() => handleRejectApplication(viewingResumeApp)}
+                        disabled={rejectingAppId === viewingResumeApp.id}
+                        className="px-3.5 py-1.5 rounded-lg bg-rose-600 text-white font-semibold hover:bg-rose-700 disabled:opacity-50 text-xs inline-flex items-center gap-1.5"
+                      >
+                        <XCircle className="w-3.5 h-3.5" />
+                        <span>Switch to Rejected</span>
+                      </button>
+                    )}
+
+                    {/* Only one button: Switch Rejected to Approved */}
+                    {viewingResumeApp.status === "Rejected" && (
+                      <button
+                        type="button"
+                        onClick={() => handleApproveApplication(viewingResumeApp)}
+                        disabled={approvingAppId === viewingResumeApp.id}
+                        className="px-3.5 py-1.5 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700 disabled:opacity-50 text-xs inline-flex items-center gap-1.5"
+                      >
+                        <CheckCircle className="w-3.5 h-3.5" />
+                        <span>{approvingAppId === viewingResumeApp.id ? "Syncing..." : "Switch to Approved"}</span>
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => setViewingResumeApp(null)}
+                      className="ui-btn-secondary px-3.5 py-1.5 font-semibold rounded-lg text-xs hover:scale-105 active:scale-95 transition-transform"
+                    >
+                      Close
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1588,6 +1979,29 @@ export default function AdminPage() {
         </motion.div>
       )}
     </AnimatePresence>
+
+    {/* Approval & External Sync Status Modal with Processing, Success & Warning Effects */}
+    <ApprovalSyncModal
+      isOpen={approvalModalState.isOpen}
+      status={approvalModalState.status}
+      candidateName={approvalModalState.candidateName}
+      candidateEmail={approvalModalState.candidateEmail}
+      jobTitle={approvalModalState.jobTitle}
+      errorDetails={approvalModalState.errorDetails}
+      onClose={() => setApprovalModalState((prev) => ({ ...prev, isOpen: false }))}
+      onRetry={handleRetryApprovalSync}
+    />
+
+    {/* Resume Document Viewer Window */}
+    <ResumeViewerModal
+      isOpen={resumeModalData.isOpen}
+      onClose={() => setResumeModalData((prev) => ({ ...prev, isOpen: false }))}
+      resumeUrl={resumeModalData.resumeUrl}
+      fileName={resumeModalData.fileName}
+      candidateName={resumeModalData.candidateName}
+      jobTitle={resumeModalData.jobTitle}
+      candidateEmail={resumeModalData.candidateEmail}
+    />
     </div>
   );
 }

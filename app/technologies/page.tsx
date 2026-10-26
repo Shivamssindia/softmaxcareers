@@ -7,6 +7,7 @@ import { ArrowRight, Sparkles, Zap, Code2, Cloud, Bot, Smartphone, Database, Shi
 import data from "@/lib/data/data.json";
 import TechnologyDetailModal from "@/components/TechnologyDetailModal";
 import { TechItem } from "@/components/TechnologyCard3D";
+import HeroBackgroundEffect from "@/components/HeroBackgroundEffect";
 
 interface Category {
   id: string;
@@ -134,41 +135,40 @@ export default function TechnologiesPage() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-white dark:bg-slate-950">
-      {/* Ambient background glows */}
-      <div className="pointer-events-none absolute top-0 left-1/4 w-[500px] h-[500px] bg-indigo-400/10 dark:bg-indigo-600/10 rounded-full blur-[120px]" />
-      <div className="pointer-events-none absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-purple-400/10 dark:bg-purple-600/10 rounded-full blur-[120px]" />
-
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-20 space-y-12">
-        {/* ---------- HEADER ---------- */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
-          className="text-center max-w-3xl mx-auto space-y-4"
-        >
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 space-y-12">
+        {/* ---------- HERO SECTION ---------- */}
+        <section className="relative overflow-hidden rounded-3xl py-12 sm:py-16 px-4 sm:px-8 border border-slate-200/80 dark:border-slate-800/80 bg-gradient-to-b from-indigo-50/40 via-white to-transparent dark:from-indigo-950/20 dark:via-slate-900/40 dark:to-transparent shadow-sm">
+          <HeroBackgroundEffect />
           <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.1, duration: 0.5 }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/60 dark:to-purple-950/60 border border-indigo-100 dark:border-indigo-900/60 text-indigo-700 dark:text-indigo-300 text-xs font-semibold shadow-sm"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
+            className="relative z-10 text-center max-w-3xl mx-auto space-y-4"
           >
-            <Sparkles className="w-3.5 h-3.5 text-indigo-500 animate-pulse" />
-            <span>Powered by Modern Engineering</span>
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.1, duration: 0.5 }}
+              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/60 dark:to-purple-950/60 border border-indigo-100 dark:border-indigo-900/60 text-indigo-700 dark:text-indigo-300 text-xs font-semibold shadow-sm"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-indigo-500 animate-pulse" />
+              <span>Powered by Modern Engineering</span>
+            </motion.div>
+
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+              The{" "}
+              <span className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                Technology
+              </span>{" "}
+              We Build With
+            </h1>
+
+            <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 leading-relaxed max-w-2xl mx-auto">
+              Explore {TECHNOLOGIES.length}+ battle-tested technologies powering our
+              products. Hover to pause, click any tech to dive deeper.
+            </p>
           </motion.div>
-
-          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-            The{" "}
-            <span className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-              Technology
-            </span>{" "}
-            We Build With
-          </h1>
-
-          <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 leading-relaxed max-w-2xl mx-auto">
-            Explore {TECHNOLOGIES.length}+ battle-tested technologies powering our
-            products. Hover to pause, click any tech to dive deeper.
-          </p>
-        </motion.div>
+        </section>
 
         {/* ---------- CATEGORY FILTER ---------- */}
         <motion.div

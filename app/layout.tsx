@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { AuthProvider } from "@/context/AuthContext";
+import { ModalProvider } from "@/context/ModalContext";
 import { JobProvider } from "@/context/JobContext";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -11,7 +12,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
-  themeColor: "#0b0416",
+  themeColor: "#ffffff",
 };
 
 export const metadata: Metadata = {
@@ -123,11 +124,13 @@ export default function RootLayout({
       <body className="flex flex-col min-h-screen text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-[#0b0f19] selection:bg-indigo-600 selection:text-white antialiased transition-colors duration-200">
         <ThemeProvider>
           <AuthProvider>
-            <JobProvider>
-              <Header />
-              <main className="flex-grow">{children}</main>
-              <Footer />
-            </JobProvider>
+            <ModalProvider>
+              <JobProvider>
+                <Header />
+                <main className="flex-grow">{children}</main>
+                <Footer />
+              </JobProvider>
+            </ModalProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

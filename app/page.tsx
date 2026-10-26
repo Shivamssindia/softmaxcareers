@@ -7,6 +7,7 @@ import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from
 import { useJobs } from "@/context/JobContext";
 import { useAuth } from "@/context/AuthContext";
 import { JobCard } from "@/components/JobCard";
+import HeroBackgroundEffect from "@/components/HeroBackgroundEffect";
 import {
   Bot,
   Server,
@@ -151,10 +152,10 @@ export default function HomePage() {
   return (
     <div className="space-y-16 sm:space-y-24 pb-20 relative">
       {/* ============================================================ */}
-      {/* HERO SECTION — 3D PARALLAX + FLOATING ORBS                    */}
+      {/* HERO SECTION — 3D PARALLAX + CYBER CONSTELLATION BACKGROUND   */}
       {/* ============================================================ */}
-      <section className="relative pt-12 sm:pt-20 lg:pt-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto text-center overflow-hidden">
-        <FloatingOrbs />
+      <section className="relative pt-12 sm:pt-20 lg:pt-24 pb-8 sm:pb-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto text-center overflow-hidden rounded-3xl">
+        <HeroBackgroundEffect />
 
         <motion.div
           initial="hidden"
@@ -175,7 +176,7 @@ export default function HomePage() {
               hidden: { opacity: 0, y: 20, rotateX: -20 },
               visible: { opacity: 1, y: 0, rotateX: 0, transition: { duration: 0.6 } },
             }}
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-100 dark:border-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-xs font-semibold"
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-100 dark:border-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-xs font-semibold select-none shadow-xs"
           >
             <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
             <span>Now Hiring Across Engineering, Product & Delivery</span>

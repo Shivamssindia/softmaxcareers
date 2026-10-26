@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useJobs } from "@/context/JobContext";
 import { useAuth } from "@/context/AuthContext";
 import { JobCard } from "@/components/JobCard";
+import HeroBackgroundEffect from "@/components/HeroBackgroundEffect";
 import {
   Briefcase,
   Search,
@@ -26,6 +27,7 @@ export default function OpeningsPage() {
   const [selectedCategory, setSelectedCategory] = useState<"all" | "Tech" | "Non-Tech">("all");
   const [selectedDepartment, setSelectedDepartment] = useState("all");
   const [selectedType, setSelectedType] = useState("all");
+  const [selectedStatus, setSelectedStatus] = useState<"all" | "active" | "closed">("all");
 
   const techDepartments = [
     "Web Development",
@@ -51,7 +53,9 @@ export default function OpeningsPage() {
       : [...techDepartments, ...nonTechDepartments];
 
   const filteredJobs = jobs.filter((job) => {
-    if (job.status !== "active") return false;
+    if (selectedStatus !== "all" && job.status !== selectedStatus) {
+      return false;
+    }
 
     if (selectedCategory !== "all" && job.category !== selectedCategory) {
       return false;
@@ -88,28 +92,32 @@ export default function OpeningsPage() {
     setSelectedCategory("all");
     setSelectedDepartment("all");
     setSelectedType("all");
+    setSelectedStatus("all");
   };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 space-y-8">
-      {/* Header */}
-      <motion.header
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
-        className="text-center max-w-3xl mx-auto space-y-3"
-      >
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-100 dark:border-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-xs font-semibold">
-          <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
-          <span>SoftMax Careers Hub</span>
-        </div>
-        <h1 className="text-2xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-          Find Top Jobs in IT Field
-        </h1>
-        <p className="text-xs sm:text-base text-slate-600 dark:text-slate-400 max-w-xl mx-auto">
-          Explore open positions in Tech & Non-Tech IT tracks. Apply online and track your application status live.
-        </p>
-      </motion.header>
+      {/* Hero Section */}
+      <section className="relative overflow-hidden rounded-3xl py-12 sm:py-16 px-4 sm:px-8 border border-slate-200/80 dark:border-slate-800/80 bg-gradient-to-b from-indigo-50/40 via-white to-transparent dark:from-indigo-950/20 dark:via-slate-900/40 dark:to-transparent shadow-sm">
+        <HeroBackgroundEffect />
+        <motion.header
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+          className="relative z-10 text-center max-w-3xl mx-auto space-y-3"
+        >
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-100 dark:border-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-xs font-semibold select-none shadow-xs">
+            <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+            <span>SoftMax Careers Hub</span>
+          </div>
+          <h1 className="text-2xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+            Find Top Jobs in IT Field
+          </h1>
+          <p className="text-xs sm:text-base text-slate-600 dark:text-slate-400 max-w-xl mx-auto">
+            Explore open positions in Tech & Non-Tech IT tracks. Apply online and track your application status live.
+          </p>
+        </motion.header>
+      </section>
 
       {/* Filter and Search Bar */}
       <motion.div
@@ -156,11 +164,22 @@ export default function OpeningsPage() {
             <option value="Remote">Remote</option>
             <option value="Hybrid">Hybrid</option>
           </select>
+
+          {/* Status Filter Dropdown */}
+          <select
+            value={selectedStatus}
+            onChange={(e) => setSelectedStatus(e.target.value as "all" | "active" | "closed")}
+            className="px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="all">All Statuses ({jobs.length})</option>
+            <option value="active">Active ({jobs.filter((j) => j.status === "active").length})</option>
+            <option value="closed">Closed ({jobs.filter((j) => j.status === "closed").length})</option>
+          </select>
         </div>
 
         {/* Category Pills & Count */}
         <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => {
                 setSelectedCategory("all");
@@ -206,9 +225,14 @@ export default function OpeningsPage() {
 
           <div className="flex items-center gap-3 text-xs text-slate-500">
             <span>
-              Showing <strong>{filteredJobs.length}</strong> of {jobs.filter((j) => j.status === "active").length} active positions
+              Showing <strong>{filteredJobs.length}</strong> of {jobs.length} openings
+              {jobs.some((j) => j.status === "closed") && (
+                <span className="ml-1 text-slate-400">
+                  ({jobs.filter((j) => j.status === "active").length} active, {jobs.filter((j) => j.status === "closed").length} closed)
+                </span>
+              )}
             </span>
-            {(searchQuery || selectedCategory !== "all" || selectedDepartment !== "all" || selectedType !== "all") && (
+            {(searchQuery || selectedCategory !== "all" || selectedDepartment !== "all" || selectedType !== "all" || selectedStatus !== "all") && (
               <button
                 onClick={resetFilters}
                 className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"

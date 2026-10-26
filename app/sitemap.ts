@@ -75,10 +75,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       if (!slug) continue;
 
       const jobUrl = `${baseUrl}/apply/${slug}`;
-
-      // Prevent duplicates if multiple jobs resolve to the same slug
-      if (seenUrls.has(jobUrl)) continue;
-      seenUrls.add(jobUrl);
+      const detailUrl = `${baseUrl}/detail/${slug}`;
 
       // Parse postedDate or fallback to current time
       let lastModified = now;
@@ -89,12 +86,27 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         }
       }
 
-      jobRoutes.push({
-        url: jobUrl,
-        lastModified,
-        changeFrequency: "daily",
-        priority: 0.8,
-      });
+      // Add detail page
+      if (!seenUrls.has(detailUrl)) {
+        seenUrls.add(detailUrl);
+        jobRoutes.push({
+          url: detailUrl,
+          lastModified,
+          changeFrequency: "daily",
+          priority: 0.85,
+        });
+      }
+
+      // Add apply page
+      if (!seenUrls.has(jobUrl)) {
+        seenUrls.add(jobUrl);
+        jobRoutes.push({
+          url: jobUrl,
+          lastModified,
+          changeFrequency: "daily",
+          priority: 0.8,
+        });
+      }
     }
   } catch (error) {
     console.error("Error generating dynamic job sitemap entries:", error);

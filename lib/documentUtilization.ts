@@ -226,25 +226,14 @@ export async function utilizeDocument(file: File): Promise<UtilizationResult> {
   // Perform utilization based on file type
   if (mimeType.startsWith("image/") || /\.(jpe?g|png|webp)$/i.test(fileName)) {
     utilizedBlob = await compressImage(file);
-  } else if (mimeType.includes("pdf") || fileName.endsWith(".pdf")) {
-    utilizedBlob = await compressPDF(file);
   } else {
-    // Other doc formats (DOCX, etc.)
-    const arrayBuffer = await file.arrayBuffer();
-    const bytes = new Uint8Array(arrayBuffer);
-    if (bytes.length > TARGET_MAX_BYTES) {
-      utilizedBlob = fallbackSliceOptimization(file, bytes);
-    } else {
-      utilizedBlob = file;
-    }
+    // PDF, DOCX, DOC and other document formats MUST NOT be arbitrarily sliced or truncated.
+    // Truncating a PDF or DOCX damages its internal xref / zip tables and corrupts the file.
+    // Preserving intact binary ensures 100% document fidelity.
+    utilizedBlob = file;
   }
 
-  // Ensure utilized size fits properly into [500KB, 980KB]
-  let finalBlob = utilizedBlob;
-  if (finalBlob.size > TARGET_MAX_BYTES) {
-    // Secondary safety trim
-    finalBlob = finalBlob.slice(0, TARGET_OPTIMAL_BYTES, file.type);
-  }
+  const finalBlob = utilizedBlob;
 
   const utilizedSizeBytes = finalBlob.size;
   const utilizedSizeFormatted = formatFileSize(utilizedSizeBytes);

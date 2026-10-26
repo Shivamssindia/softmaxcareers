@@ -605,12 +605,19 @@ export async function deleteResumeFromGoogleDrive(
  */
 export function extractDriveFileId(url?: string | null): string | undefined {
   if (!url) return undefined;
+  const trimmed = url.trim();
+  // Direct file ID check (Google Drive IDs are typically 25-55 chars alphanumeric with hyphens/underscores)
+  if (/^[a-zA-Z0-9_-]{25,55}$/.test(trimmed)) {
+    return trimmed;
+  }
   const patterns = [
-    /\/file\/d\/([a-zA-Z0-9_-]+)/,
+    /\/(?:file|document|spreadsheets|presentation)\/d\/([a-zA-Z0-9_-]+)/,
+    /\/d\/([a-zA-Z0-9_-]+)/,
     /[?&]id=([a-zA-Z0-9_-]+)/,
+    /\/folders\/([a-zA-Z0-9_-]+)/,
   ];
   for (const p of patterns) {
-    const m = url.match(p);
+    const m = trimmed.match(p);
     if (m?.[1]) return m[1];
   }
   return undefined;

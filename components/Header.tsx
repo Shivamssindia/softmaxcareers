@@ -66,10 +66,22 @@ export const Header: React.FC = () => {
       ).length
     : 0;
 
+  const hasApprovedApp = user
+    ? applications.some(
+        (app) =>
+          ((user.uid && app.uid === user.uid) ||
+            Boolean(
+              user.email &&
+                (app as any).candidateEmail?.toLowerCase() === user.email.toLowerCase()
+            )) &&
+          app.status === "Approved"
+      )
+    : false;
+
   const navLinks = [
     { name: "Home", href: "/" },
     { name: "Job Openings", href: "/openings" },
-    { name: "Technologies", href: "/technologies" },
+    { name: "Our Technologies", href: "/technologies" },
     { name: "About Us", href: "/about" },
     { name: "Contact", href: "/contact" },
   ];
@@ -151,18 +163,25 @@ export const Header: React.FC = () => {
               <Link
                 href="/candidate"
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 border transition ${
-                  pathname === "/candidate"
+                  hasApprovedApp
+                    ? "bg-emerald-50 dark:bg-emerald-950/60 border-emerald-300 dark:border-emerald-700/80 text-emerald-700 dark:text-emerald-300 shadow-sm"
+                    : pathname === "/candidate"
                     ? "bg-indigo-50 dark:bg-indigo-950/50 border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400"
                     : "border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
                 }`}
               >
-                <Briefcase className="w-3.5 h-3.5 text-indigo-500" />
+                <Briefcase className={`w-3.5 h-3.5 ${hasApprovedApp ? "text-emerald-600 dark:text-emerald-400" : "text-indigo-500"}`} />
                 <span>My Applications</span>
-                {myApplicationsCount > 0 && (
+                {hasApprovedApp ? (
+                  <span className="px-1.5 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-bold flex items-center gap-0.5 animate-pulse">
+                    <span>Approved</span>
+                    <span>🎉</span>
+                  </span>
+                ) : myApplicationsCount > 0 ? (
                   <span className="w-4 h-4 rounded-full bg-indigo-600 text-white text-[10px] font-bold flex items-center justify-center">
                     {myApplicationsCount}
                   </span>
-                )}
+                ) : null}
               </Link>
             )}
 
@@ -398,9 +417,12 @@ export const Header: React.FC = () => {
                     <Link
                       href="/candidate"
                       onClick={() => setMobileMenuOpen(false)}
-                      className="px-3 py-2 rounded-lg bg-indigo-600 text-white text-xs font-semibold text-center"
+                      className={`px-3 py-2 rounded-lg text-white text-xs font-semibold text-center flex items-center justify-center gap-1 ${
+                        hasApprovedApp ? "bg-emerald-600 animate-pulse" : "bg-indigo-600"
+                      }`}
                     >
-                      Console
+                      <span>Console</span>
+                      {hasApprovedApp && <span>🎉</span>}
                     </Link>
                   ) : (
                     <Link

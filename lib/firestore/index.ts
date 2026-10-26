@@ -62,6 +62,10 @@ function mapUserDoc(id: string, data: DocumentData): User {
       data.resumeUrl || data.resumeData || data.resumeDataUrl || undefined,
     resumeFileId: data.resumeFileId || undefined,     // ← ADD
     resumeFileName: data.resumeFileName || undefined, // ← ADD
+    profileCompleted:
+      data.profileCompleted !== undefined
+        ? Boolean(data.profileCompleted)
+        : undefined,
     emailVerified: data.emailVerified,
     providerId: data.providerId,
     createdAt: data.createdAt,
@@ -176,21 +180,23 @@ export async function saveUserToFirestore(
       role,
       photoURL: userData.photoURL || null,
       phone: userData.phone || null,
-      title:
-        userData.title ||
-        (role === "admin" ? "System Administrator" : "Software Engineer"),
-      location: userData.location || "Bengaluru, India",
+      title: userData.title || (role === "admin" ? "System Administrator" : null),
+      location: userData.location || (role === "admin" ? "Bengaluru, India" : null),
       bio:
         userData.bio ||
         (role === "admin"
           ? "SoftMax System Administrator"
-          : "Software Developer"),
+          : null),
       skills:
         userData.skills ||
-        ["React", "TypeScript", "Node.js", "Next.js"],
+        (role === "admin" ? ["Administration", "Security"] : []),
       department:
         userData.department ||
-        (role === "admin" ? "Engineering Management" : "Web Development"),
+        (role === "admin" ? "Engineering Management" : null),
+      profileCompleted:
+        userData.profileCompleted !== undefined
+          ? Boolean(userData.profileCompleted)
+          : false,
       emailVerified: userData.emailVerified ?? false,
       providerId: userData.providerId || "password",
       createdAt: userData.createdAt || new Date().toISOString(),

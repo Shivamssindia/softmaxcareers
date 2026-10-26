@@ -1,11 +1,14 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 import { useJobs } from "@/context/JobContext";
+import { useModal } from "@/context/ModalContext";
+import { isProfileComplete, getMissingProfileFields, DepartmentType } from "@/types";
+import { CompleteProfileForm } from "@/components/CompleteProfileForm";
 import {
   User as UserIcon,
   Mail,
@@ -25,11 +28,35 @@ import {
   UploadCloud,
   Trash2,
   Eye,
+  Sparkles,
+  ArrowRight,
+  RotateCcw,
+  Building,
 } from "lucide-react";
 import { uploadResume, deleteResume } from "@/lib/resumeStorage";
+import { ResumeViewerModal } from "@/components/ResumeViewerModal";
 
-export default function ProfilePage() {
+const DEPARTMENTS: DepartmentType[] = [
+  "Web Development",
+  "Software Engineering",
+  "Cloud & DevOps",
+  "System Design",
+  "AI & Data",
+  "UI/UX Design",
+  "IT Project Management",
+  "Business Analysis & Consulting",
+  "Talent Acquisition & HR",
+  "Sales & Client Relations",
+];
+
+function ProfileContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectParam = searchParams.get("redirect");
+  const forceCompleteParam = searchParams.get("complete") === "true";
+  const justCompletedParam = searchParams.get("completed") === "true";
+
+  const { showAlert, showConfirm } = useModal();
   const {
     user,
     loading,
@@ -42,13 +69,16 @@ export default function ProfilePage() {
 
   const [verificationSent, setVerificationSent] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState<string | null>(
+    justCompletedParam ? "Profile completed successfully! Welcome to your SoftMax profile." : null
+  );
   const [saving, setSaving] = useState(false);
 
-  // Form State
+  // Form State for Edit Modal
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editTitle, setEditTitle] = useState("");
+  const [editDepartment, setEditDepartment] = useState<DepartmentType>("Web Development");
   const [editLocation, setEditLocation] = useState("");
   const [editBio, setEditBio] = useState("");
   const [editSkills, setEditSkills] = useState("");
@@ -60,9 +90,16 @@ export default function ProfilePage() {
     type: "success" | "error";
     text: string;
   } | null>(null);
+  const [isResumeViewerOpen, setIsResumeViewerOpen] = useState(false);
+
+  // ---------------- Route Protection ----------------
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace("/auth");
+    }
+  }, [user, loading, router]);
 
   // ---------------- Resume Handlers ----------------
-
   const handleResumeUpload = async (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -129,8 +166,14 @@ export default function ProfilePage() {
   const handleDeleteResume = async () => {
     if (!user) return;
 
-    const confirmed = window.confirm(
-      "Are you sure you want to remove your resume? This will delete the file from your Google Drive and unlink it from your profile."
+    const confirmed = await showConfirm(
+      "Are you sure you want to remove your resume? This will delete the file from your Google Drive and unlink it from your profile.",
+      "Remove Resume",
+      {
+        type: "danger",
+        confirmText: "Yes, Remove Resume",
+        cancelText: "Keep Resume",
+      }
     );
     if (!confirmed) return;
 
@@ -174,26 +217,8 @@ export default function ProfilePage() {
   const handleViewResume = () => {
     const src = user?.resumeUrl || (user as any)?.resumeData;
     if (!src) return;
-
-    if (src.startsWith("http://") || src.startsWith("https://")) {
-      window.open(src, "_blank", "noopener,noreferrer");
-      return;
-    }
-
-    const win = window.open();
-    if (win) {
-      win.document.write(
-        `<iframe src="${src}" frameborder="0" style="border:0; top:0; left:0; bottom:0; right:0; width:100%; height:100%;" allowfullscreen></iframe>`
-      );
-    }
+    setIsResumeViewerOpen(true);
   };
-
-  // ---------------- Route Protection ----------------
-  useEffect(() => {
-    if (!loading && !user) {
-      router.replace("/auth");
-    }
-  }, [user, loading, router]);
 
   // ---------------- Profile Edit ----------------
   const openEditModal = () => {
@@ -201,6 +226,7 @@ export default function ProfilePage() {
     setEditName(user.name || (user as any).displayName || "");
     setEditPhone(user.phone || "");
     setEditTitle(user.title || "");
+    setEditDepartment((user.department as DepartmentType) || "Web Development");
     setEditLocation(user.location || "");
     setEditBio(user.bio || "");
     setEditSkills(user.skills ? user.skills.join(", ") : "");
@@ -213,8 +239,17 @@ export default function ProfilePage() {
       await sendVerificationEmail();
       setVerificationSent(true);
       setTimeout(() => setVerificationSent(false), 5000);
+      await showAlert(
+        "A verification email has been dispatched to your email address. Please check your inbox and spam folder.",
+        "Verification Email Sent",
+        "success"
+      );
     } catch (err: any) {
-      alert(err?.message || "Failed to send verification email");
+      await showAlert(
+        err?.message || "Failed to send verification email",
+        "Verification Error",
+        "error"
+      );
     }
   };
 
@@ -227,25 +262,90 @@ export default function ProfilePage() {
         .map((s) => s.trim())
         .filter(Boolean);
 
+      if (!editName.trim()) {
+        await showAlert("Please enter your full name.", "Validation Error", "error");
+        setSaving(false);
+        return;
+      }
+      if (!editPhone.trim() || editPhone.trim().length < 7) {
+        await showAlert("Please enter a valid phone number (at least 7 digits).", "Validation Error", "error");
+        setSaving(false);
+        return;
+      }
+      if (!editTitle.trim()) {
+        await showAlert("Please enter your professional title.", "Validation Error", "error");
+        setSaving(false);
+        return;
+      }
+      if (!editLocation.trim()) {
+        await showAlert("Please enter your location.", "Validation Error", "error");
+        setSaving(false);
+        return;
+      }
+      if (!skillsArray.length) {
+        await showAlert("Please add at least one skill.", "Validation Error", "error");
+        setSaving(false);
+        return;
+      }
+      if (!editBio.trim() || editBio.trim().length < 10) {
+        await showAlert("Please enter a professional summary or bio (at least 10 characters).", "Validation Error", "error");
+        setSaving(false);
+        return;
+      }
+
       await updateUserProfile({
-        name: editName,
-        displayName: editName,
-        phone: editPhone || undefined,
-        title: editTitle || undefined,
-        location: editLocation || undefined,
-        bio: editBio || undefined,
+        name: editName.trim(),
+        displayName: editName.trim(),
+        phone: editPhone.trim(),
+        title: editTitle.trim(),
+        department: editDepartment,
+        location: editLocation.trim(),
+        bio: editBio.trim(),
         skills: skillsArray,
-        portfolioUrl: editPortfolio || undefined,
+        portfolioUrl: editPortfolio.trim() || undefined,
+        profileCompleted: true,
       });
 
       setSaveSuccess("Profile updated successfully!");
       setIsEditModalOpen(false);
       setTimeout(() => setSaveSuccess(null), 4000);
+      await showAlert(
+        "Your profile information has been saved successfully.",
+        "Profile Updated",
+        "success"
+      );
     } catch (err: any) {
-      alert(err?.message || "Failed to update profile");
+      await showAlert(
+        err?.message || "Failed to update profile",
+        "Update Error",
+        "error"
+      );
     } finally {
       setSaving(false);
     }
+  };
+
+  // Reset profile for demo/testing purposes
+  const handleResetProfileForDemo = async () => {
+    const confirmed = await showConfirm(
+      "This will reset your profile completion flag so you can test the 'Complete Profile' form workflow from scratch.\n\nWould you like to reset now?",
+      "Reset Profile for Demo Testing",
+      {
+        type: "info",
+        confirmText: "Yes, Reset for Demo",
+        cancelText: "Cancel",
+      }
+    );
+    if (!confirmed) return;
+
+    await updateUserProfile({
+      profileCompleted: false,
+      phone: undefined,
+      title: undefined,
+      bio: undefined,
+      skills: [],
+    });
+    router.replace("/profile?complete=true");
   };
 
   const handleSignOut = async () => {
@@ -271,20 +371,100 @@ export default function ProfilePage() {
     );
   }
 
+  // If candidate's profile is not complete (or URL requests ?complete=true)
+  if (user.role !== "admin" && (!isProfileComplete(user) || forceCompleteParam)) {
+    const missingFields = getMissingProfileFields(user);
+    return (
+      <div className="max-w-3xl mx-auto py-10 sm:py-16 px-4 sm:px-6 space-y-6">
+        {missingFields.length > 0 && !forceCompleteParam && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="p-4 sm:p-5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs sm:text-sm flex items-start gap-3.5 shadow-sm"
+          >
+            <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <strong className="font-bold block text-sm sm:text-base text-amber-900 dark:text-amber-100">
+                Profile Details Incomplete
+              </strong>
+              <p className="text-amber-800 dark:text-amber-300">
+                Some required information is missing from your profile. Please complete the details below to unlock your full profile.
+              </p>
+              <div className="pt-1 flex flex-wrap gap-1.5 items-center">
+                <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400">
+                  Missing information:
+                </span>
+                {missingFields.map((field) => (
+                  <span
+                    key={field}
+                    className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200 border border-amber-200 dark:border-amber-800/60"
+                  >
+                    {field}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        <CompleteProfileForm
+          user={user}
+          redirectUrl={redirectParam ? decodeURIComponent(redirectParam) : undefined}
+          onCompleted={() => {
+            const dest = `/profile?completed=true${
+              redirectParam ? `&redirect=${encodeURIComponent(redirectParam)}` : ""
+            }`;
+            router.replace(dest);
+          }}
+        />
+      </div>
+    );
+  }
+
+  // Profile is complete: Render the user's complete profile
   return (
     <div className="max-w-4xl mx-auto py-10 sm:py-16 px-4 sm:px-6 space-y-8">
+      {/* Context banner when redirected from Job Application */}
+      {redirectParam && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm"
+        >
+          <div className="flex items-center gap-2.5">
+            <Briefcase className="w-4 h-4 flex-shrink-0 text-indigo-600 dark:text-indigo-400" />
+            <div>
+              <span className="font-bold">Your profile is complete!</span> You are ready to submit your job application.
+            </div>
+          </div>
+          <Link
+            href={decodeURIComponent(redirectParam)}
+            className="ui-btn-primary px-4 py-2 text-xs font-semibold rounded-xl inline-flex items-center gap-1.5 self-start sm:self-auto hover:scale-105 active:scale-95 transition-transform"
+          >
+            <span>Continue to Application</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </motion.div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">
-            User Profile
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">
+              User Profile
+            </h1>
+            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 inline-flex items-center gap-1">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>100% Complete</span>
+            </span>
+          </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Manage your personal details and account settings.
+            Manage your personal details, credentials, and resume settings.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             type="button"
             onClick={openEditModal}
@@ -292,6 +472,16 @@ export default function ProfilePage() {
           >
             <Edit3 className="w-3.5 h-3.5" />
             <span>Edit Profile</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleResetProfileForDemo}
+            className="px-3 py-2 text-xs font-semibold rounded-xl text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 transition flex items-center gap-1"
+            title="Reset profile completion to test the setup form again"
+          >
+            <RotateCcw className="w-3 h-3" />
+            <span>Reset (Demo)</span>
           </button>
 
           <button
@@ -306,13 +496,17 @@ export default function ProfilePage() {
       </div>
 
       {saveSuccess && (
-        <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2">
+        <motion.div
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2"
+        >
           <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
           <span>{saveSuccess}</span>
-        </div>
+        </motion.div>
       )}
 
-      {/* Main Profile Card */}
+      {/* Main Profile Card - Displays Full Profile Completely */}
       <div className="p-6 sm:p-8 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-4">
@@ -320,26 +514,31 @@ export default function ProfilePage() {
               <img
                 src={user.photoURL}
                 alt={user.name || (user as any).displayName}
-                className="w-16 h-16 rounded-2xl object-cover border border-slate-200 dark:border-slate-700"
+                className="w-16 h-16 rounded-2xl object-cover border border-slate-200 dark:border-slate-700 shadow-sm"
               />
             ) : (
-              <div className="w-16 h-16 rounded-2xl bg-indigo-600 text-white font-bold text-2xl flex items-center justify-center">
+              <div className="w-16 h-16 rounded-2xl bg-indigo-600 text-white font-bold text-2xl flex items-center justify-center shadow-sm">
                 {(user.name || (user as any).displayName || "U")
                   .charAt(0)
                   .toUpperCase()}
               </div>
             )}
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-xl font-bold text-slate-900 dark:text-white">
                   {user.name || (user as any).displayName}
                 </h2>
                 <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 uppercase">
                   {user.role}
                 </span>
+                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" />
+                  <span>Profile Complete</span>
+                </span>
               </div>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-slate-500 mt-1 font-medium">
                 {user.title || "Software Professional"}
+                {user.department && ` • ${user.department}`}
               </p>
             </div>
           </div>
@@ -365,24 +564,20 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Info Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-slate-600 dark:text-slate-300">
+        {/* Detailed Info Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-xs text-slate-600 dark:text-slate-300">
           <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 space-y-1">
-            <span className="text-slate-400 block font-medium">
-              Email Address
-            </span>
-            <div className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
-              <Mail className="w-3.5 h-3.5 text-slate-400" />
-              <span>{user.email}</span>
+            <span className="text-slate-400 block font-medium">Email Address</span>
+            <div className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5 truncate">
+              <Mail className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
+              <span className="truncate">{user.email}</span>
             </div>
           </div>
 
           <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 space-y-1">
-            <span className="text-slate-400 block font-medium">
-              Phone Number
-            </span>
+            <span className="text-slate-400 block font-medium">Phone Number</span>
             <div className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
-              <Phone className="w-3.5 h-3.5 text-slate-400" />
+              <Phone className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
               <span>{user.phone || "Not specified"}</span>
             </div>
           </div>
@@ -390,17 +585,25 @@ export default function ProfilePage() {
           <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 space-y-1">
             <span className="text-slate-400 block font-medium">Location</span>
             <div className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5 text-slate-400" />
+              <MapPin className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
               <span>{user.location || "Bengaluru, India"}</span>
             </div>
           </div>
 
-          <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 space-y-1">
-            <span className="text-slate-400 block font-medium">
-              Portfolio / GitHub
-            </span>
+          {user.department && (
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 space-y-1">
+              <span className="text-slate-400 block font-medium">Department</span>
+              <div className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+                <Building className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
+                <span>{user.department}</span>
+              </div>
+            </div>
+          )}
+
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 space-y-1 sm:col-span-2">
+            <span className="text-slate-400 block font-medium">Portfolio / GitHub / Web</span>
             <div className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5 truncate">
-              <Globe className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+              <Globe className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
               {user.portfolioUrl ? (
                 <a
                   href={user.portfolioUrl}
@@ -411,7 +614,7 @@ export default function ProfilePage() {
                   {user.portfolioUrl}
                 </a>
               ) : (
-                <span>Not added</span>
+                <span className="text-slate-400 font-normal">Not added yet</span>
               )}
             </div>
           </div>
@@ -419,9 +622,10 @@ export default function ProfilePage() {
 
         {/* Bio */}
         {user.bio && (
-          <div className="space-y-1">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              About / Bio
+          <div className="space-y-1.5">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <FileText className="w-3.5 h-3.5 text-indigo-500" />
+              <span>About / Professional Summary</span>
             </h3>
             <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
               {user.bio}
@@ -432,14 +636,15 @@ export default function ProfilePage() {
         {/* Skills */}
         {user.skills && user.skills.length > 0 && (
           <div className="space-y-2">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Skills & Expertise
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+              <span>Skills & Expertise ({user.skills.length})</span>
             </h3>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-2">
               {user.skills.map((skill) => (
                 <span
                   key={skill}
-                  className="px-2.5 py-1 rounded-md text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300"
+                  className="px-3 py-1 rounded-lg text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/50"
                 >
                   {skill}
                 </span>
@@ -458,8 +663,7 @@ export default function ProfilePage() {
               <span>Resume / Curriculum Vitae</span>
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Your resume is saved in your profile and used automatically when
-              you apply for SoftMax roles.
+              Your resume is saved in your profile and used automatically when you apply for SoftMax roles.
             </p>
           </div>
 
@@ -566,8 +770,7 @@ export default function ProfilePage() {
                 : "Click or drag to upload your Resume / CV"}
             </div>
             <p className="text-[11px] text-slate-400 mt-1">
-              Supports PDF, DOC, DOCX up to 20MB. Automatically optimized and
-              saved in your profile.
+              Supports PDF, DOC, DOCX up to 20MB. Automatically optimized and saved in your profile.
             </p>
           </div>
         )}
@@ -629,7 +832,26 @@ export default function ProfilePage() {
 
                   <div>
                     <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Phone
+                      Department
+                    </label>
+                    <select
+                      value={editDepartment}
+                      onChange={(e) => setEditDepartment(e.target.value as DepartmentType)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      {DEPARTMENTS.map((d) => (
+                        <option key={d} value={d}>
+                          {d}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Phone Number
                     </label>
                     <input
                       type="tel"
@@ -639,19 +861,19 @@ export default function ProfilePage() {
                       className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
-                </div>
 
-                <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Location
-                  </label>
-                  <input
-                    type="text"
-                    value={editLocation}
-                    onChange={(e) => setEditLocation(e.target.value)}
-                    placeholder="e.g. Bengaluru, India"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
+                  <div>
+                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Location
+                    </label>
+                    <input
+                      type="text"
+                      value={editLocation}
+                      onChange={(e) => setEditLocation(e.target.value)}
+                      placeholder="e.g. Bengaluru, India"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -714,6 +936,25 @@ export default function ProfilePage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Resume Document Viewer Window */}
+      <ResumeViewerModal
+        isOpen={isResumeViewerOpen}
+        onClose={() => setIsResumeViewerOpen(false)}
+        resumeUrl={user?.resumeUrl || (user as any)?.resumeData}
+        fileName={user?.resumeFileName || `${user?.name || "Candidate"} - Resume.pdf`}
+        candidateName={user?.name || (user as any)?.displayName || "Candidate"}
+        jobTitle={user?.title || "Candidate Profile"}
+        candidateEmail={user?.email}
+      />
     </div>
+  );
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense fallback={<div className="min-h-[60vh] flex items-center justify-center text-xs text-slate-400">Loading user profile...</div>}>
+      <ProfileContent />
+    </Suspense>
   );
 }

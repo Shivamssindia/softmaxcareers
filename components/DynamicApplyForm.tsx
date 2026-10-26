@@ -29,6 +29,8 @@ import {
 } from "lucide-react";
 import { getJobSlug, findJobBySlugOrId } from "@/lib/slug";
 import { uploadResume } from "@/lib/resumeStorage";
+import { isProfileComplete, getMissingProfileFields } from "@/types";
+import { CompleteProfileForm } from "@/components/CompleteProfileForm";
 
 interface DynamicApplyFormProps {
   initialJobIdentifier?: string;
@@ -177,6 +179,11 @@ export const DynamicApplyForm: React.FC<DynamicApplyFormProps> = ({
       return;
     }
 
+    if (selectedJob && selectedJob.status === "closed") {
+      setError("This job opening is closed and is no longer accepting new applications.");
+      return;
+    }
+
     if (blockingApp) {
       const isApproved =
         blockingApp.status === "Approved" ||
@@ -249,6 +256,63 @@ export const DynamicApplyForm: React.FC<DynamicApplyFormProps> = ({
           Sign In Required to Apply
         </p>
         <p className="text-xs text-slate-500">Redirecting to sign in...</p>
+      </div>
+    );
+  }
+
+  // Profile Completion Guard on Apply Portal:
+  // If candidate has any data missing in user data, show complete profile form with redirect to application!
+  if (user.role !== "admin" && !isProfileComplete(user)) {
+    const slug = selectedJob
+      ? getJobSlug(selectedJob)
+      : effectiveIdentifier
+      ? getJobSlug(effectiveIdentifier)
+      : "";
+    const redirectUrl = slug ? `/apply/${slug}` : "/apply";
+    const missingFields = getMissingProfileFields(user);
+
+    return (
+      <div className="max-w-3xl mx-auto py-10 sm:py-16 px-4 sm:px-6 space-y-6">
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-4 sm:p-5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs sm:text-sm flex items-start gap-3.5 shadow-sm"
+        >
+          <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <h2 className="font-bold text-sm sm:text-base text-amber-900 dark:text-amber-100">
+              Complete Profile Required to Apply
+            </h2>
+            <p className="text-amber-800 dark:text-amber-300">
+              Your candidate profile is currently missing some required details. Please complete the form below to proceed directly with your job application for{" "}
+              <strong>{selectedJob?.title || "this position"}</strong>.
+            </p>
+            {missingFields.length > 0 && (
+              <div className="pt-1.5 flex flex-wrap gap-1.5 items-center">
+                <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400">
+                  Missing information:
+                </span>
+                {missingFields.map((field) => (
+                  <span
+                    key={field}
+                    className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200 border border-amber-200 dark:border-amber-800/60"
+                  >
+                    {field}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        </motion.div>
+
+        <CompleteProfileForm
+          user={user}
+          redirectUrl={redirectUrl}
+          onCompleted={() => {
+            // Re-render once complete
+            router.refresh();
+          }}
+        />
       </div>
     );
   }
@@ -505,6 +569,11 @@ export const DynamicApplyForm: React.FC<DynamicApplyFormProps> = ({
               <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
                 {selectedJob.department}
               </span>
+              {selectedJob.status === "closed" && (
+                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300">
+                  Closed
+                </span>
+              )}
             </div>
 
             <button
@@ -860,10 +929,12 @@ export const DynamicApplyForm: React.FC<DynamicApplyFormProps> = ({
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={isSubmitting || resumeUploading}
+            disabled={isSubmitting || resumeUploading || selectedJob?.status === "closed"}
             className="ui-btn-primary w-full py-3.5 text-sm font-bold rounded-xl flex items-center justify-center gap-2 disabled:opacity-50 hover:scale-[1.01] active:scale-[0.99] transition-transform"
           >
-            {isSubmitting ? (
+            {selectedJob?.status === "closed" ? (
+              <span>Position Closed (Applications Disabled)</span>
+            ) : isSubmitting ? (
               <span>Submitting Application...</span>
             ) : resumeUploading ? (
               <span>Waiting for resume upload...</span>

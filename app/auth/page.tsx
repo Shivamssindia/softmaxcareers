@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
-import { UserRole } from "@/types";
+import { UserRole, isProfileComplete } from "@/types";
+import { CompleteProfileForm } from "@/components/CompleteProfileForm";
 import {
   CheckCircle2,
   AlertCircle,
@@ -33,6 +34,7 @@ function AuthContent() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [completionUser, setCompletionUser] = useState<any | null>(null);
 
   const handlePostAuthRedirect = (targetRole?: UserRole) => {
     if (redirectParam) {
@@ -42,6 +44,20 @@ function AuthContent() {
     } else {
       router.replace("/candidate");
     }
+  };
+
+  const handlePostAuthSuccess = (authenticatedUser: any) => {
+    // If candidate's profile is not complete, show completion form immediately
+    if (authenticatedUser.role !== "admin" && !isProfileComplete(authenticatedUser)) {
+      setCompletionUser(authenticatedUser);
+      setSubmitting(false);
+      return;
+    }
+
+    setSuccessMsg(`Welcome, ${authenticatedUser.name || authenticatedUser.displayName}! Redirecting...`);
+    setTimeout(() => {
+      handlePostAuthRedirect(authenticatedUser.role);
+    }, 500);
   };
 
   const formatFirebaseError = (err: any): string => {
@@ -63,10 +79,7 @@ function AuthContent() {
     setSubmitting(true);
     try {
       const gUser = await loginWithGoogle();
-      setSuccessMsg(`Welcome, ${gUser.name || (gUser as any).displayName}! Redirecting...`);
-      setTimeout(() => {
-        handlePostAuthRedirect(gUser.role);
-      }, 500);
+      handlePostAuthSuccess(gUser);
     } catch (err: any) {
       setError(formatFirebaseError(err));
       setSubmitting(false);
@@ -79,17 +92,38 @@ function AuthContent() {
     setSubmitting(true);
     try {
       const candidateUser = await login("candidate@softmax.in", "candidate123");
-      setSuccessMsg(`Authenticated as Candidate (${candidateUser.name || (candidateUser as any).displayName})! Redirecting...`);
-      setTimeout(() => {
-        handlePostAuthRedirect(candidateUser.role);
-      }, 500);
+      handlePostAuthSuccess(candidateUser);
     } catch (err: any) {
       setError(formatFirebaseError(err));
       setSubmitting(false);
     }
   };
 
-  // If already signed in
+  // If candidate needs to complete profile right after sign in
+  const activeCompletionUser =
+    completionUser ||
+    (!loading && user && user.role !== "admin" && !isProfileComplete(user)
+      ? user
+      : null);
+
+  if (activeCompletionUser) {
+    return (
+      <div className="w-full max-w-2xl mx-auto py-4">
+        <CompleteProfileForm
+          user={activeCompletionUser}
+          redirectUrl={redirectParam ? decodeURIComponent(redirectParam) : undefined}
+          onCompleted={() => {
+            const dest = `/profile?completed=true${
+              redirectParam ? `&redirect=${encodeURIComponent(redirectParam)}` : ""
+            }`;
+            router.replace(dest);
+          }}
+        />
+      </div>
+    );
+  }
+
+  // If already signed in with a complete profile
   if (!loading && user) {
     return (
       <motion.div

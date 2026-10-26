@@ -14,6 +14,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { useJobs } from "@/context/JobContext";
+import HeroBackgroundEffect from "@/components/HeroBackgroundEffect";
 
 export default function ContactPage() {
   const { submitContactMessage } = useJobs();
@@ -52,24 +53,27 @@ export default function ContactPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 space-y-12">
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
-        className="text-center max-w-2xl mx-auto space-y-3"
-      >
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-100 dark:border-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-xs font-semibold">
-          <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
-          <span>Get In Touch</span>
-        </div>
-        <h1 className="text-2xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-          Contact SoftMax Careers
-        </h1>
-        <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-          Whether you have a question about open career opportunities, application status, or interview processes, we would love to hear from you.
-        </p>
-      </motion.div>
+      {/* Hero Section */}
+      <section className="relative overflow-hidden rounded-3xl py-12 sm:py-16 px-4 sm:px-8 border border-slate-200/80 dark:border-slate-800/80 bg-gradient-to-b from-indigo-50/40 via-white to-transparent dark:from-indigo-950/20 dark:via-slate-900/40 dark:to-transparent shadow-sm">
+        <HeroBackgroundEffect />
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+          className="relative z-10 text-center max-w-2xl mx-auto space-y-3"
+        >
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-100 dark:border-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-xs font-semibold">
+            <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+            <span>Get In Touch</span>
+          </div>
+          <h1 className="text-2xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+            Contact SoftMax Careers
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+            Whether you have a question about open career opportunities, application status, or interview processes, we would love to hear from you.
+          </p>
+        </motion.div>
+      </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Contact Information */}

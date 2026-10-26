@@ -15,23 +15,23 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 const THEME_STORAGE_KEY = "softmax_spatial_theme";
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [theme, setThemeState] = useState<ThemeMode>("dark");
+  const [theme, setThemeState] = useState<ThemeMode>("light");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    // Check initial preference from localStorage or default to dark
+    // Check initial preference from localStorage or default to light
     try {
       const storedTheme = localStorage.getItem(THEME_STORAGE_KEY) as ThemeMode | null;
       if (storedTheme === "light" || storedTheme === "dark") {
         setThemeState(storedTheme);
         applyThemeClass(storedTheme);
       } else {
-        // Default to dark spatial UI
-        setThemeState("dark");
-        applyThemeClass("dark");
+        // Default to light UI
+        setThemeState("light");
+        applyThemeClass("light");
       }
     } catch {
-      applyThemeClass("dark");
+      applyThemeClass("light");
     } finally {
       setMounted(true);
     }

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef } from "react";
+import { useModal } from "@/context/ModalContext";
 import {
   parseCandidateExcel,
   bulkImportCandidates,
@@ -36,6 +37,7 @@ export default function CandidateBulkUpload({
   jobs,
   onImportComplete,
 }: CandidateBulkUploadProps) {
+  const { showAlert } = useModal();
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -61,7 +63,7 @@ export default function CandidateBulkUpload({
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (e: any) {
-      alert("Failed to generate template: " + (e?.message || e));
+      showAlert("Failed to generate template: " + (e?.message || e), "Template Generation Error", "error");
     }
   };
 
@@ -430,8 +432,8 @@ export default function CandidateBulkUpload({
 
             {/* Results Table */}
             <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
-              <div className="max-h-72 overflow-y-auto">
-                <table className="w-full text-left text-xs">
+              <div className="max-h-72 overflow-y-auto overflow-x-auto">
+                <table className="w-full text-left text-xs min-w-[520px]">
                   <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-500 uppercase font-semibold tracking-wider sticky top-0 border-b border-slate-200 dark:border-slate-800">
                     <tr>
                       <th className="p-3 w-12 text-center">#</th>
@@ -449,8 +451,8 @@ export default function CandidateBulkUpload({
                         <td className="p-3 text-center text-slate-400 font-mono">
                           {r.rowIndex}
                         </td>
-                        <td className="p-3 font-semibold text-slate-900 dark:text-white">
-                          {r.email}
+                        <td className="p-3 font-semibold text-slate-900 dark:text-white break-all">
+                          <div className="leading-relaxed mb-4 line-clamp-1 class-leadaxed md-4">{r.email}</div>
                         </td>
                         <td className="p-3">
                           <span

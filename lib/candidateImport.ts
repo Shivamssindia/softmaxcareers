@@ -607,7 +607,7 @@ export function generateCandidateImportTemplate(): Uint8Array {
   XLSX.utils.book_append_sheet(wb, ws, "Candidate Template");
 
   const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-  return wbout;
+  return new Uint8Array(wbout);
 }
 
 export function generateCandidateImportTemplateBlob(): Blob {

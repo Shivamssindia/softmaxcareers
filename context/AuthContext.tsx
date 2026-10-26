@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { User, UserRole } from "@/types";
+import { User, UserRole, isProfileComplete } from "@/types";
 import { auth, isFirebaseConfigured } from "@/lib/firebase";
 import {
   saveUserToFirestore,
@@ -116,6 +116,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           ? false
           : Boolean((existingDoc as any).isAdmin);
 
+      const hasCompleted =
+        preservedRole === "admin" ||
+        (isProfileComplete(existingDoc) && existingDoc.profileCompleted !== false);
+
       profile = {
         ...existingDoc,
         role: preservedRole,
@@ -124,6 +128,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         name: name || existingDoc.name,
         displayName: name || existingDoc.name,
         photoURL: photoURL || existingDoc.photoURL,
+        profileCompleted: hasCompleted,
         emailVerified,
         providerId,
         lastLoginAt: new Date().toISOString(),
@@ -147,13 +152,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         createdAt,
         lastLoginAt,
         phone,
-        title: "Software Engineer",
-        location: "Bengaluru, India",
-        bio: "Passionate engineer eager to contribute to innovative software solutions.",
-        skills: ["React", "TypeScript", "Node.js", "Next.js", "Tailwind CSS"],
-        department: "Web Development",
-        portfolioUrl: "https://github.com",
+        title: undefined,
+        location: undefined,
+        bio: undefined,
+        skills: [],
+        department: undefined,
+        portfolioUrl: undefined,
         resumeUrl: undefined,
+        profileCompleted: false,
       };
 
       // Store in Firestore database
@@ -270,12 +276,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           providerId: "password",
           createdAt: new Date().toISOString(),
           lastLoginAt: new Date().toISOString(),
-          title: "Software Engineer",
-          location: "Bengaluru, India",
-          bio: "Passionate engineer eager to contribute to innovative software solutions.",
-          skills: ["React", "TypeScript", "Node.js", "Next.js", "Tailwind CSS"],
-          department: "Web Development",
-          portfolioUrl: "https://github.com",
+          title: undefined,
+          location: undefined,
+          bio: undefined,
+          skills: [],
+          department: undefined,
+          portfolioUrl: undefined,
+          profileCompleted: false,
         };
 
         // Store user in Firestore database
@@ -341,11 +348,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const updateUserProfile = async (updates: Partial<UserWithCompat>): Promise<UserWithCompat> => {
     if (!user) throw new Error("No authenticated user to update");
 
-    const updatedUser: UserWithCompat = {
+    const mergedUser = {
       ...user,
       ...updates,
       name: updates.name || updates.displayName || user.name,
       displayName: updates.displayName || updates.name || user.name,
+    };
+
+    const effectiveProfileCompleted =
+      updates.profileCompleted !== undefined
+        ? updates.profileCompleted && (user.role === "admin" || isProfileComplete(mergedUser))
+        : isProfileComplete(mergedUser);
+
+    const updatedUser: UserWithCompat = {
+      ...mergedUser,
+      profileCompleted: effectiveProfileCompleted,
     };
 
     // Update Firebase Auth displayName and photoURL if present
