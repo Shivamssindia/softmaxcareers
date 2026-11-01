@@ -7,6 +7,7 @@ import { JobProvider } from "@/context/JobContext";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { StructuredData } from "@/components/StructuredData";
+import Script from "next/script";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -78,7 +79,9 @@ export const metadata: Metadata = {
     description:
       "Find top IT jobs in tech & non-tech fields. Track your application live with SoftMax Candidate Console.",
     creator: "@softmax_tech",
-    images: ["https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=1200&auto=format&fit=crop&q=80"],
+    images: [
+      "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=1200&auto=format&fit=crop&q=80",
+    ],
   },
   robots: {
     index: true,
@@ -102,7 +105,12 @@ export default function RootLayout({
     <html lang="en" className="light scroll-smooth" suppressHydrationWarning>
       <head>
         <StructuredData />
-        <script id="google-identity-services" src="https://accounts.google.com/gsi/client" async defer></script>
+        <script
+          id="google-identity-services"
+          src="https://accounts.google.com/gsi/client"
+          async
+          defer
+        ></script>
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -133,6 +141,21 @@ export default function RootLayout({
             </ModalProvider>
           </AuthProvider>
         </ThemeProvider>
+
+        {/* ─── Microsoft Clarity ─────────────────────────────── */}
+        <Script
+          id="ms-clarity"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function(c,l,a,r,i,t,y){
+                  c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+                  t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+                  y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+              })(window, document, "clarity", "script", "y4pia34m1q");
+            `,
+          }}
+        />
       </body>
     </html>
   );

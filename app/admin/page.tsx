@@ -25,7 +25,11 @@ import {
   deleteContactMessageFromFirestore,
   getUserByEmailFromFirestore,
   getUserFromFirestore,
+  getContactFormSettings,
+  updateContactFormSettings,
 } from "@/lib/firestore";
+import type { ContactFormSettings } from "@/types";
+import { DEFAULT_CONTACT_FORM_SETTINGS } from "@/types";
 import {
   Shield,
   Briefcase,
@@ -48,7 +52,12 @@ import {
   UserPlus,
   Ban,
   Download,
-  GraduationCap, // ✅ EXAM SYSTEM — ADDED
+  GraduationCap,
+  Settings,
+  MapPin,
+  Globe,
+  History,
+  Lock,
 } from "lucide-react";
 import {
   ApprovalSyncModal,
@@ -96,9 +105,18 @@ export default function AdminPage() {
     refreshContactMessages,
   } = useJobs();
 
-  const [activeTab, setActiveTab] = useState<"jobs" | "applications" | "messages" | "users">("jobs");
+  const [activeTab, setActiveTab] = useState<
+    "jobs" | "applications" | "messages" | "users" | "settings"
+  >("jobs");
   const [usersList, setUsersList] = useState<User[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
+
+  // ─── ADDED: contact form settings state ────────────────────────────
+  const [contactSettings, setContactSettings] = useState<ContactFormSettings>(
+    DEFAULT_CONTACT_FORM_SETTINGS
+  );
+  const [contactSettingsSaving, setContactSettingsSaving] = useState(false);
+  // ─── END ADDED ─────────────────────────────────────────────────────
 
   // Modals & Selection
   const [isAddJobModalOpen, setIsAddJobModalOpen] = useState(false);
@@ -179,6 +197,14 @@ export default function AdminPage() {
     }
   }, [user, loading, router]);
 
+  // ─── ADDED: load contact form settings ─────────────────────────────
+  useEffect(() => {
+    getContactFormSettings()
+      .then(setContactSettings)
+      .catch(() => {});
+  }, []);
+  // ─── END ADDED ─────────────────────────────────────────────────────
+
   // Fetch registered users
   const fetchUsers = async () => {
     setLoadingUsers(true);
@@ -197,6 +223,28 @@ export default function AdminPage() {
       fetchUsers();
     }
   }, [activeTab]);
+
+  // ─── ADDED: save contact form settings ─────────────────────────────
+  const handleSaveContactSettings = async () => {
+    setContactSettingsSaving(true);
+    try {
+      await updateContactFormSettings(contactSettings, user?.uid);
+      await showAlert(
+        "Contact form settings saved successfully.",
+        "Settings Saved",
+        "success"
+      );
+    } catch (err: any) {
+      await showAlert(
+        err?.message || "Failed to save contact settings.",
+        "Error",
+        "error"
+      );
+    } finally {
+      setContactSettingsSaving(false);
+    }
+  };
+  // ─── END ADDED ─────────────────────────────────────────────────────
 
   const handleToggleUserRole = async (targetUser: User) => {
     const isCurrentAdmin = targetUser.role === "admin";
@@ -412,7 +460,6 @@ export default function AdminPage() {
     application: JobApplication
   ): Promise<{ ok: boolean; error?: string }> => {
     try {
-      // 1) Resolve candidate user profile
       let profile: User | null = null;
 
       const uidFromApp = application.uid || ((application as any).candidateUid as string | undefined);
@@ -423,7 +470,6 @@ export default function AdminPage() {
         profile = await getUserByEmailFromFirestore((application as any).candidateEmail);
       }
 
-      // 2) Build the payload — exact keys expected by the external backend
       const candidate: ConsultantCandidateData = {
         uid: profile?.uid || uidFromApp || application.id,
         name: profile?.name || (profile as any)?.displayName || (application as any).candidateName || "",
@@ -444,7 +490,6 @@ export default function AdminPage() {
         graduationMarks: Number((profile as any)?.graduationMarks ?? 0),
       };
 
-      // Sanity check required fields before hitting the server route
       if (!candidate.uid || !candidate.name || !candidate.email) {
         return {
           ok: false,
@@ -454,7 +499,6 @@ export default function AdminPage() {
         };
       }
 
-      // 3) Call our Next.js server route (server-side fetch with secret key)
       const res = await axios.post("/api/consultant", candidate, {
         headers: {
           "Content-Type": "application/json",
@@ -494,7 +538,6 @@ export default function AdminPage() {
 
     setApprovingAppId(app.id);
 
-    // 1) Open popup window immediately with processing effect
     setApprovalModalState({
       isOpen: true,
       status: "processing",
@@ -506,18 +549,14 @@ export default function AdminPage() {
     });
 
     try {
-      // 2) Commit local approval first
       await updateApplicationStatus(app.id, "Approved");
 
-      // 3) Secure server-side consultant backend call
       const result = await syncCandidateToConsultant(app);
 
-      // 4) Reflect status in the open review modal if present
       if (viewingResumeApp?.id === app.id) {
         setViewingResumeApp({ ...viewingResumeApp, status: "Approved" });
       }
 
-      // 5) Transition modal to success or warning based on external response
       if (result.ok) {
         setApprovalModalState((prev) => ({
           ...prev,
@@ -714,7 +753,7 @@ export default function AdminPage() {
       }
     }
   };
-
+  
   // Filtered lists
   const filteredJobs = jobs.filter((j) => {
     if (!jobSearch.trim()) return true;
@@ -757,7 +796,6 @@ export default function AdminPage() {
 
   const filteredApplications = useMemo(() => {
     return applications.filter((app) => {
-      // 1. Role Filter
       if (appRoleFilter !== "all") {
         const candRole = (app.jobTitle || "").trim().toLowerCase();
         const targetRole = appRoleFilter.trim().toLowerCase();
@@ -766,12 +804,10 @@ export default function AdminPage() {
         }
       }
 
-      // 2. Status Filter
       if (appStatusFilter !== "all" && app.status !== appStatusFilter) {
         return false;
       }
 
-      // 3. Experience Filter
       if (appExpFilter !== "all") {
         const candExp = (app.experienceYears || "").trim().toLowerCase();
         const targetExp = appExpFilter.trim().toLowerCase();
@@ -784,7 +820,6 @@ export default function AdminPage() {
         }
       }
 
-      // 4. Name Filter (Candidate Name)
       if (appNameFilter.trim()) {
         const q = appNameFilter.trim().toLowerCase();
         const cand = usersList.find((u) => u.uid === app.uid);
@@ -874,7 +909,6 @@ export default function AdminPage() {
             <span>Recruiter Candidate Upload</span>
           </Link>
 
-          {/* ✅ EXAM SYSTEM — ADDED: Exam Dashboard button */}
           <Link
             href="/exam/admin"
             className="ui-btn-secondary text-xs font-semibold px-4 py-2.5 rounded-xl inline-flex items-center gap-1.5 shadow-sm border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-indigo-500 dark:hover:border-indigo-500 text-slate-700 dark:text-slate-200 transition"
@@ -895,7 +929,6 @@ export default function AdminPage() {
       </div>
 
       {/* Stats Cards */}
-      {/* ✅ EXAM SYSTEM — ADDED: widened to lg:grid-cols-5 to fit Exam Center card */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
           <div className="text-xs font-semibold text-slate-400 uppercase">Total Openings</div>
@@ -933,7 +966,6 @@ export default function AdminPage() {
           <div className="text-[11px] text-slate-500 mt-1">Platform user accounts</div>
         </div>
 
-        {/* ✅ EXAM SYSTEM — ADDED: Exam Center card */}
         <Link
           href="/exam/admin"
           className="p-5 rounded-2xl border border-indigo-200 dark:border-indigo-800 bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-950/40 dark:to-slate-900 shadow-sm hover:shadow-md transition group"
@@ -950,8 +982,9 @@ export default function AdminPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl w-fit">
-        <button          onClick={() => setActiveTab("jobs")}
+      <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl w-fit flex-wrap">
+        <button
+          onClick={() => setActiveTab("jobs")}
           className={`px-3.5 py-2 rounded-lg text-xs font-semibold transition ${
             activeTab === "jobs"
               ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm"
@@ -989,6 +1022,18 @@ export default function AdminPage() {
           }`}
         >
           Users ({usersList.length})
+        </button>
+        {/* ADDED: Contact Settings tab */}
+        <button
+          onClick={() => setActiveTab("settings")}
+          className={`px-3.5 py-2 rounded-lg text-xs font-semibold transition inline-flex items-center gap-1.5 ${
+            activeTab === "settings"
+              ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm"
+              : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+          }`}
+        >
+          <Settings className="w-3.5 h-3.5" />
+          <span>Contact Settings</span>
         </button>
       </div>
 
@@ -1095,7 +1140,6 @@ export default function AdminPage() {
       {/* TAB 2: CANDIDATE APPLICATIONS */}
       {activeTab === "applications" && (
         <div className="space-y-4">
-          {/* Applications Filter Toolbar */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-3 shadow-sm">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2">
@@ -1121,7 +1165,6 @@ export default function AdminPage() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {/* 1. Candidate Name Filter */}
               <div>
                 <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
                   Candidate Name
@@ -1148,7 +1191,6 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* 2. Role Filter */}
               <div>
                 <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
                   Role (Job Title)
@@ -1167,7 +1209,6 @@ export default function AdminPage() {
                 </select>
               </div>
 
-              {/* 3. Status Filter */}
               <div>
                 <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
                   Status
@@ -1185,7 +1226,6 @@ export default function AdminPage() {
                 </select>
               </div>
 
-              {/* 4. Experience Filter */}
               <div>
                 <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
                   Experience
@@ -1321,7 +1361,7 @@ export default function AdminPage() {
                             >
                               Review
                             </button>
-                            
+
                             <button
                               type="button"
                               disabled={deletingAppId === app.id}
@@ -1345,7 +1385,8 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* TAB 3: CONTACT INQUIRIES */}
+
+      {/* TAB 3: CONTACT INQUIRIES (ENRICHED) */}
       {activeTab === "messages" && (
         <div className="border border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900 overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
@@ -1360,32 +1401,90 @@ export default function AdminPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {contactMessages.map((msg) => (
-                  <tr key={msg.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-850">
-                    <td className="p-3.5">
-                      <div className="font-bold text-slate-900 dark:text-white">{msg.name}</div>
-                      <div className="text-[11px] text-slate-500 leading-relaxed mb-4 line-clamp-1 class-leadaxed md-4">{msg.email}</div>
-                      {msg.phone && <div className="text-[11px] text-slate-400">{msg.phone}</div>}
-                    </td>
-                    <td className="p-3.5 text-indigo-600 dark:text-indigo-400 font-medium">
-                      {msg.service}
-                    </td>
-                    <td className="p-3.5 max-w-sm text-slate-600 dark:text-slate-300">
-                      <div className="leading-relaxed mb-4 line-clamp-1 class-leadaxed md-4">{msg.message}</div>
-                    </td>
-                    <td className="p-3.5 text-slate-500">
-                      {msg.submittedAt ? new Date(msg.submittedAt).toLocaleDateString() : "Recent"}
-                    </td>
-                    <td className="p-3.5 text-right">
-                      <button
-                        onClick={() => handleDeleteMessage(msg.id)}
-                        className="p-1 rounded-lg text-slate-400 hover:text-rose-600"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                {contactMessages.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-12 text-center">
+                      <Mail className="w-8 h-8 mx-auto text-slate-300 dark:text-slate-600 mb-2" />
+                      <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                        No messages yet
+                      </p>
+                      <p className="text-xs text-slate-400">
+                        Contact form submissions will appear here.
+                      </p>
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  contactMessages.map((msg) => (
+                    <tr key={msg.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-850">
+                      <td className="p-3.5">
+                        <div className="font-bold text-slate-900 dark:text-white">{msg.name}</div>
+                        <div className="text-[11px] text-slate-500 truncate">{msg.email}</div>
+                        {msg.phone && <div className="text-[11px] text-slate-400">{msg.phone}</div>}
+
+                        {/* ADDED: enrichment badges */}
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {msg.isSignedIn ? (
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 inline-flex items-center gap-0.5">
+                              <Lock className="w-2.5 h-2.5" /> Signed-In
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                              Guest
+                            </span>
+                          )}
+                          {msg.ipAddress && (
+                            <span
+                              className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 inline-flex items-center gap-0.5"
+                              title={`IP: ${msg.ipAddress}`}
+                            >
+                              <Globe className="w-2.5 h-2.5" /> {msg.ipAddress}
+                            </span>
+                          )}
+                          {msg.location && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800 inline-flex items-center gap-0.5">
+                              <MapPin className="w-2.5 h-2.5" /> {msg.location}
+                            </span>
+                          )}
+                          {msg.previousUserEmail && !msg.isSignedIn && (
+                            <span
+                              className="text-[10px] px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-800 inline-flex items-center gap-0.5"
+                              title={`Previous sign-in: ${msg.previousUserEmail}${msg.previousSignInIp ? ` (${msg.previousSignInIp})` : ""}`}
+                            >
+                              <History className="w-2.5 h-2.5" /> Prev: {msg.previousUserEmail}
+                            </span>
+                          )}
+                          {msg.browserName && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                              {msg.browserName}
+                            </span>
+                          )}
+                          {msg.msgId && (
+                            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-50 text-slate-500 dark:bg-slate-800/60 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                              #{msg.msgId.slice(0, 8)}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-3.5 text-indigo-600 dark:text-indigo-400 font-medium">
+                        {msg.service}
+                      </td>
+                      <td className="p-3.5 max-w-sm text-slate-600 dark:text-slate-300">
+                        <div className="leading-relaxed mb-4 line-clamp-1 class-leadaxed md-4">{msg.message}</div>
+                      </td>
+                      <td className="p-3.5 text-slate-500">
+                        {msg.submittedAt ? new Date(msg.submittedAt).toLocaleString() : "Recent"}
+                      </td>
+                      <td className="p-3.5 text-right">
+                        <button
+                          onClick={() => handleDeleteMessage(msg.id)}
+                          className="p-1 rounded-lg text-slate-400 hover:text-rose-600"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -1395,7 +1494,6 @@ export default function AdminPage() {
       {/* TAB 4: USERS MANAGEMENT */}
       {activeTab === "users" && (
         <div className="space-y-4">
-          {/* User Search & Filter Bar */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2 max-w-md w-full">
               <div className="relative flex-1">
@@ -1432,6 +1530,7 @@ export default function AdminPage() {
                   <tr>
                     <th className="p-3.5">User Profile</th>
                     <th className="p-3.5">Email</th>
+                    <th className="p-3.5">IP / Browser</th>
                     <th className="p-3.5">Role</th>
                     <th className="p-3.5">Registered</th>
                     <th className="p-3.5 text-right">Actions</th>
@@ -1440,7 +1539,7 @@ export default function AdminPage() {
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {filteredUsers.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="p-8 text-center text-slate-400">
+                      <td colSpan={6} className="p-8 text-center text-slate-400">
                         No user accounts match the current filter.
                       </td>
                     </tr>
@@ -1454,6 +1553,14 @@ export default function AdminPage() {
                           <div className="text-[11px] text-slate-400 leading-relaxed mb-4 line-clamp-1 class-leadaxed md-4">{u.title || "User"}</div>
                         </td>
                         <td className="p-3.5 text-slate-600 dark:text-slate-300">{u.email}</td>
+                        <td className="p-3.5">
+                          <div className="text-[11px] font-mono text-slate-700 dark:text-slate-300">
+                            {u.ipAddress || "—"}
+                          </div>
+                          <div className="text-[10px] text-slate-400">
+                            {u.browserName || "—"}
+                          </div>
+                        </td>
                         <td className="p-3.5">
                           <span
                             className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
@@ -1524,6 +1631,135 @@ export default function AdminPage() {
         </div>
       )}
 
+      {/* TAB 5: CONTACT FORM SETTINGS (ADDED) */}
+      {activeTab === "settings" && (
+        <div className="space-y-4">
+          <div className="border border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900 p-6 sm:p-8 shadow-sm space-y-5">
+            <div className="flex items-start justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                  Contact Form Settings
+                </h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  Control what information is required when candidates and visitors submit the contact form.
+                </p>
+              </div>
+              {contactSettings.updatedAt && (
+                <span className="text-[11px] text-slate-400 whitespace-nowrap">
+                  Last updated: {new Date(contactSettings.updatedAt).toLocaleString()}
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <label className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/40 flex items-start gap-3 cursor-pointer hover:border-indigo-400 transition">
+                <input
+                  type="checkbox"
+                  checked={contactSettings.requireSignIn}
+                  onChange={(e) =>
+                    setContactSettings((s) => ({
+                      ...s,
+                      requireSignIn: e.target.checked,
+                    }))
+                  }
+                  className="mt-0.5 w-4 h-4 accent-indigo-600"
+                />
+                <div>
+                  <div className="text-sm font-semibold text-slate-900 dark:text-white">
+                    Require Sign-In
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                    Only signed-in users can submit the contact form. Recommended to prevent spam.
+                  </p>
+                </div>
+              </label>
+
+              <label className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/40 flex items-start gap-3 cursor-pointer hover:border-indigo-400 transition">
+                <input
+                  type="checkbox"
+                  checked={contactSettings.requireCaptcha}
+                  onChange={(e) =>
+                    setContactSettings((s) => ({
+                      ...s,
+                      requireCaptcha: e.target.checked,
+                    }))
+                  }
+                  className="mt-0.5 w-4 h-4 accent-indigo-600"
+                />
+                <div>
+                  <div className="text-sm font-semibold text-slate-900 dark:text-white">
+                    Require Captcha
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                    Show a math captcha. Blocks basic bots and automated submissions.
+                  </p>
+                </div>
+              </label>
+
+              <label className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/40 flex items-start gap-3 cursor-pointer hover:border-indigo-400 transition">
+                <input
+                  type="checkbox"
+                  checked={contactSettings.requireLocation}
+                  onChange={(e) =>
+                    setContactSettings((s) => ({
+                      ...s,
+                      requireLocation: e.target.checked,
+                    }))
+                  }
+                  className="mt-0.5 w-4 h-4 accent-indigo-600"
+                />
+                <div>
+                  <div className="text-sm font-semibold text-slate-900 dark:text-white">
+                    Require Location
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                    Users must provide their location. Helps trace spam and prioritize responses.
+                  </p>
+                </div>
+              </label>
+
+              <label className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/40 flex items-start gap-3 cursor-pointer hover:border-indigo-400 transition">
+                <input
+                  type="checkbox"
+                  checked={contactSettings.requirePhone}
+                  onChange={(e) =>
+                    setContactSettings((s) => ({
+                      ...s,
+                      requirePhone: e.target.checked,
+                    }))
+                  }
+                  className="mt-0.5 w-4 h-4 accent-indigo-600"
+                />
+                <div>
+                  <div className="text-sm font-semibold text-slate-900 dark:text-white">
+                    Require Phone Number
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                    Users must provide a phone number (min 7 digits).
+                  </p>
+                </div>
+              </label>
+            </div>
+
+            <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
+              <p className="text-[11px] text-slate-400 max-w-md">
+                Every contact message is automatically enriched with the sender&apos;s IP,
+                browser, sign-in snapshot (name, email, phone) and prior message
+                history — enabling spam tracing even after sign-out.
+              </p>
+              <button
+                type="button"
+                onClick={handleSaveContactSettings}
+                disabled={contactSettingsSaving}
+                className="ui-btn-primary px-5 py-2.5 text-xs font-semibold rounded-xl disabled:opacity-50"
+              >
+                {contactSettingsSaving ? "Saving..." : "Save Settings"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* CREATE / EDIT JOB MODAL */}
       <AnimatePresence>
         {isAddJobModalOpen && (
@@ -1552,380 +1788,393 @@ export default function AdminPage() {
                 </button>
               </div>
 
-            <form onSubmit={handleSaveJob} className="space-y-4 text-xs">
-              <div>
-                <label className="block font-semibold mb-1">Job Title *</label>
-                <input
-                  type="text"
-                  required
-                  value={formTitle}
-                  onChange={(e) => setFormTitle(e.target.value)}
-                  placeholder="e.g. Senior Full Stack Engineer"
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
+              <form onSubmit={handleSaveJob} className="space-y-4 text-xs">
                 <div>
-                  <label className="block font-semibold mb-1">Category *</label>
-                  <select
-                    value={formCategory}
-                    onChange={(e) => setFormCategory(e.target.value as JobCategoryType)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
-                  >
-                    <option value="Tech">Tech</option>
-                    <option value="Non-Tech">Non-Tech</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block font-semibold mb-1">Department *</label>
-                  <select
-                    value={formDept}
-                    onChange={(e) => setFormDept(e.target.value as DepartmentType)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
-                  >
-                    <option value="">Select Department</option>
-                    <option value="Head">Head</option>
-                    <option value="Human Resources">Human Resources</option>
-                    <option value="Business Developement">Business Developement</option>
-                    <option value="Finencial">Finencial</option>
-                    <option value="AI & Software Engineering">AI & Software Engineering</option>
-                    <option value="IT Project Management">IT Project Management</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold mb-1">Location *</label>
+                  <label className="block font-semibold mb-1">Job Title *</label>
                   <input
                     type="text"
                     required
-                    value={formLocation}
-                    onChange={(e) => setFormLocation(e.target.value)}
-                    placeholder="Bengaluru, India (Hybrid)"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
+                    value={formTitle}
+                    onChange={(e) => setFormTitle(e.target.value)}
+                    placeholder="e.g. Senior Full Stack Engineer"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
 
-                <div>
-                  <label className="block font-semibold mb-1">Work Mode</label>
-                  <select
-                    value={formType}
-                    onChange={(e) => setFormType(e.target.value as Job["type"])}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
-                  >
-                    <option value="Full-time">Full-time</option>
-                    <option value="Remote">Remote</option>
-                    <option value="Hybrid">Hybrid</option>
-                    <option value="Contract">Contract</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold mb-1">Experience *</label>
-                  <input
-                    type="text"
-                    required
-                    value={formExperience}
-                    onChange={(e) => setFormExperience(e.target.value)}
-                    placeholder="3 - 5 Years"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-semibold mb-1">Salary Range *</label>
-                  <input
-                    type="text"
-                    required
-                    value={formSalary}
-                    onChange={(e) => setFormSalary(e.target.value)}
-                    placeholder="₹18,00,000 - ₹26,00,000 / year"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-semibold mb-1">Role Description *</label>
-                <textarea
-                  required
-                  rows={3}
-                  value={formDesc}
-                  onChange={(e) => setFormDesc(e.target.value)}
-                  placeholder="Summary of the role responsibilities and mission..."
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold mb-1">Responsibilities (One per line)</label>
-                <textarea
-                  rows={3}
-                  value={formResponsibilities}
-                  onChange={(e) => setFormResponsibilities(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold mb-1">Requirements (One per line)</label>
-                <textarea
-                  rows={3}
-                  value={formRequirements}
-                  onChange={(e) => setFormRequirements(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold mb-1">Key Skill Tags (comma separated)</label>
-                <input
-                  type="text"
-                  value={formTags}
-                  onChange={(e) => setFormTags(e.target.value)}
-                  placeholder="React, Next.js, Node.js"
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold mb-1">Status</label>
-                <select
-                  value={formStatus}
-                  onChange={(e) => setFormStatus(e.target.value as "active" | "closed")}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
-                >
-                  <option value="active">Active (Open for applications on job board)</option>
-                  <option value="closed">Closed (Visible on /openings with Apply disabled)</option>
-                </select>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setIsAddJobModalOpen(false)}
-                  className="ui-btn-secondary px-4 py-2 text-xs font-semibold rounded-lg"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="ui-btn-primary px-5 py-2 text-xs font-semibold rounded-lg hover:scale-105 active:scale-95 transition-transform"
-                >
-                  {editingJob ? "Update Job" : "Create Job"}
-                </button>
-              </div>
-            </form>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-
-    {/* REVIEW APPLICATION MODAL */}
-    <AnimatePresence>
-      {viewingResumeApp && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
-        >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.94, y: 16 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.94, y: 16 }}
-            transition={{ type: "spring", stiffness: 400, damping: 28 }}
-            className="relative w-full max-w-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-6 text-slate-900 dark:text-white space-y-4 max-h-[90vh] overflow-y-auto"
-          >
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold">Candidate Application</h2>
-              <button
-                onClick={() => setViewingResumeApp(null)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl grid grid-cols-2 gap-2">
-                <div>
-                  <span className="text-slate-400 block">Candidate:</span>
-                  <span className="font-semibold">
-                    {(viewingResumeApp as any).candidateName || viewingCandidate?.name || (viewingCandidate as any)?.displayName || "Candidate"}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block">Email:</span>
-                  <span className="font-semibold">
-                    {(viewingResumeApp as any).candidateEmail || viewingCandidate?.email || "—"}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block">Role:</span>
-                  <span className="font-semibold">
-                    {(viewingResumeApp as any).jobTitle || viewingJob?.title || "Role Application"}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block">Experience:</span>
-                  <span className="font-semibold">{viewingResumeApp.experienceYears}</span>
-                </div>
-              </div>
-
-              {(viewingCandidate?.portfolioUrl || (viewingResumeApp as any).portfolioUrl) && (
-                <div>
-                  <span className="text-slate-400 block mb-0.5">Portfolio / Link:</span>
-                  <a
-                    href={viewingCandidate?.portfolioUrl || (viewingResumeApp as any).portfolioUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-1"
-                  >
-                    <span>{viewingCandidate?.portfolioUrl || (viewingResumeApp as any).portfolioUrl}</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
-              )}
-
-              <div>
-                <span className="text-slate-400 block mb-0.5">Cover Note:</span>
-                <p className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 leading-relaxed">
-                  {viewingResumeApp.description}
-                </p>
-              </div>
-
-              {((viewingResumeApp as any).resumeFileName || viewingResumeUrl) && (
-                <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-2.5 truncate">
-                    <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 flex items-center justify-center flex-shrink-0">
-                      <FileText className="w-4 h-4" />
-                    </div>
-                    <div className="truncate">
-                      <span className="font-semibold text-slate-900 dark:text-white truncate block text-xs">
-                        {(viewingResumeApp as any).resumeFileName || "Candidate Resume.pdf"}
-                      </span>
-                      <span className="text-[11px] text-slate-400">Attached resume document</span>
-                    </div>
-                  </div>
-                  {viewingResumeUrl && (
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          openResumeViewer({
-                            resumeUrl: viewingResumeUrl,
-                            fileName: (viewingResumeApp as any).resumeFileName || "Candidate Resume.pdf",
-                            candidateName:
-                              (viewingResumeApp as any).candidateName ||
-                              viewingCandidate?.name ||
-                              (viewingCandidate as any)?.displayName ||
-                              "Candidate",
-                            jobTitle: (viewingResumeApp as any).jobTitle || viewingJob?.title || "Role Application",
-                            candidateEmail: (viewingResumeApp as any).candidateEmail || viewingCandidate?.email,
-                          })
-                        }
-                        className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs inline-flex items-center gap-1.5 transition shadow-sm hover:scale-105 active:scale-95"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                        <span>View Resume</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          downloadResumeFile(
-                            viewingResumeUrl,
-                            (viewingResumeApp as any).resumeFileName || "resume.pdf"
-                          )
-                        }
-                        className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-850 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs font-semibold inline-flex items-center gap-1 transition"
-                      >
-                        <Download className="w-3.5 h-3.5" />
-                        <span>Download</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Status & Switch Status Action Buttons */}
-              <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-3">
-                <div className="flex items-center justify-between gap-3 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
-                  <div className="flex items-center gap-2">
-                    <span className="text-slate-500 font-medium">Application Status:</span>
-                    <span
-                      className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                        viewingResumeApp.status === "Approved"
-                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
-                          : viewingResumeApp.status === "Rejected"
-                          ? "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300"
-                          : viewingResumeApp.status === "Cancelled"
-                          ? "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-300 dark:border-slate-700"
-                          : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
-                      }`}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold mb-1">Category *</label>
+                    <select
+                      value={formCategory}
+                      onChange={(e) => setFormCategory(e.target.value as JobCategoryType)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
                     >
-                      {viewingResumeApp.status}
-                    </span>
+                      <option value="Tech">Tech</option>
+                      <option value="Non-Tech">Non-Tech</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold mb-1">Department *</label>
+                    <select
+                      value={formDept}
+                      onChange={(e) => setFormDept(e.target.value as DepartmentType)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
+                    >
+                      <option value="">Select Department</option>
+                      <option value="Head">Head</option>
+                      <option value="Human Resources">Human Resources</option>
+                      <option value="Business Developement">Business Developement</option>
+                      <option value="Finencial">Finencial</option>
+                      <option value="AI & Software Engineering">AI & Software Engineering</option>
+                      <option value="IT Project Management">IT Project Management</option>
+                    </select>
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold mb-1">Location *</label>
+                    <input
+                      type="text"
+                      required
+                      value={formLocation}
+                      onChange={(e) => setFormLocation(e.target.value)}
+                      placeholder="Bengaluru, India (Hybrid)"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold mb-1">Work Mode</label>
+                    <select
+                      value={formType}
+                      onChange={(e) => setFormType(e.target.value as Job["type"])}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
+                    >
+                      <option value="Full-time">Full-time</option>
+                      <option value="Remote">Remote</option>
+                      <option value="Hybrid">Hybrid</option>
+                      <option value="Contract">Contract</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold mb-1">Experience *</label>
+                    <input
+                      type="text"
+                      required
+                      value={formExperience}
+                      onChange={(e) => setFormExperience(e.target.value)}
+                      placeholder="3 - 5 Years"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold mb-1">Salary Range *</label>
+                    <input
+                      type="text"
+                      required
+                      value={formSalary}
+                      onChange={(e) => setFormSalary(e.target.value)}
+                      placeholder="₹18,00,000 - ₹26,00,000 / year"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-semibold mb-1">Role Description *</label>
+                  <textarea
+                    required
+                    rows={3}
+                    value={formDesc}
+                    onChange={(e) => setFormDesc(e.target.value)}
+                    placeholder="Summary of the role responsibilities and mission..."
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold mb-1">Responsibilities (One per line)</label>
+                  <textarea
+                    rows={3}
+                    value={formResponsibilities}
+                    onChange={(e) => setFormResponsibilities(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold mb-1">Requirements (One per line)</label>
+                  <textarea
+                    rows={3}
+                    value={formRequirements}
+                    onChange={(e) => setFormRequirements(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold mb-1">Key Skill Tags (comma separated)</label>
+                  <input
+                    type="text"
+                    value={formTags}
+                    onChange={(e) => setFormTags(e.target.value)}
+                    placeholder="React, Next.js, Node.js"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold mb-1">Status</label>
+                  <select
+                    value={formStatus}
+                    onChange={(e) => setFormStatus(e.target.value as "active" | "closed")}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
+                  >
+                    <option value="active">Active (Open for applications on job board)</option>
+                    <option value="closed">Closed (Visible on /openings with Apply disabled)</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                   <button
                     type="button"
-                    disabled={deletingAppId === viewingResumeApp.id}
-                    onClick={async () => {
-                      const cand = usersList.find((u) => u.uid === viewingResumeApp.uid);
-                      const cName = (viewingResumeApp as any).candidateName || cand?.name || (cand as any)?.displayName || "Candidate";
-                      const confirmed = await showConfirm(
-                        `Are you sure you want to delete the application for "${cName}"? This action cannot be undone.`,
-                        "Delete Application",
-                        {
-                          type: "danger",
-                          confirmText: "Yes, Delete",
-                          cancelText: "Cancel",
-                        }
-                      );
-                      if (confirmed) {
-                        setDeletingAppId(viewingResumeApp.id);
-                        try {
-                          if (deleteApplication) {
-                            await deleteApplication(viewingResumeApp.id);
-                          } else {
-                            await deleteApplicationInFirestore(viewingResumeApp.id);
-                            await refreshApplications();
-                          }
-                          setViewingResumeApp(null);
-                        } catch (err) {
-                          await showAlert("Failed to delete application.", "Error", "error");
-                        } finally {
-                          setDeletingAppId(null);
-                        }
-                      }
-                    }}
-                    className="px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/40 font-semibold text-xs inline-flex items-center gap-1.5 transition disabled:opacity-50"
+                    onClick={() => setIsAddJobModalOpen(false)}
+                    className="ui-btn-secondary px-4 py-2 text-xs font-semibold rounded-lg"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>{deletingAppId === viewingResumeApp.id ? "Deleting..." : "Delete Application"}</span>
+                    Cancel
                   </button>
+                  <button
+                    type="submit"
+                    className="ui-btn-primary px-5 py-2 text-xs font-semibold rounded-lg hover:scale-105 active:scale-95 transition-transform"
+                  >
+                    {editingJob ? "Update Job" : "Create Job"}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-                  <div className="flex flex-wrap items-center justify-end gap-2 ml-auto">
-                    {/* First pending logic: initial decision if Pending */}
-                    {viewingResumeApp.status === "Pending" && (
-                      <>
+      {/* REVIEW APPLICATION MODAL */}
+      <AnimatePresence>
+        {viewingResumeApp && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.94, y: 16 }}
+              transition={{ type: "spring", stiffness: 400, damping: 28 }}
+              className="relative w-full max-w-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-6 text-slate-900 dark:text-white space-y-4 max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold">Candidate Application</h2>
+                <button
+                  onClick={() => setViewingResumeApp(null)}
+                  className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-3 text-xs">
+                <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl grid grid-cols-2 gap-2">
+                  <div>
+                    <span className="text-slate-400 block">Candidate:</span>
+                    <span className="font-semibold">
+                      {(viewingResumeApp as any).candidateName || viewingCandidate?.name || (viewingCandidate as any)?.displayName || "Candidate"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block">Email:</span>
+                    <span className="font-semibold">
+                      {(viewingResumeApp as any).candidateEmail || viewingCandidate?.email || "—"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block">Role:</span>
+                    <span className="font-semibold">
+                      {(viewingResumeApp as any).jobTitle || viewingJob?.title || "Role Application"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block">Experience:</span>
+                    <span className="font-semibold">{viewingResumeApp.experienceYears}</span>
+                  </div>
+                </div>
+
+                {(viewingCandidate?.portfolioUrl || (viewingResumeApp as any).portfolioUrl) && (
+                  <div>
+                    <span className="text-slate-400 block mb-0.5">Portfolio / Link:</span>
+                    <a
+                      href={viewingCandidate?.portfolioUrl || (viewingResumeApp as any).portfolioUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-1"
+                    >
+                      <span>{viewingCandidate?.portfolioUrl || (viewingResumeApp as any).portfolioUrl}</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                )}
+
+                <div>
+                  <span className="text-slate-400 block mb-0.5">Cover Note:</span>
+                  <p className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 leading-relaxed">
+                    {viewingResumeApp.description}
+                  </p>
+                </div>
+
+                {((viewingResumeApp as any).resumeFileName || viewingResumeUrl) && (
+                  <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 truncate">
+                      <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 flex items-center justify-center flex-shrink-0">
+                        <FileText className="w-4 h-4" />
+                      </div>
+                      <div className="truncate">
+                        <span className="font-semibold text-slate-900 dark:text-white truncate block text-xs">
+                          {(viewingResumeApp as any).resumeFileName || "Candidate Resume.pdf"}
+                        </span>
+                        <span className="text-[11px] text-slate-400">Attached resume document</span>
+                      </div>
+                    </div>
+                    {viewingResumeUrl && (
+                      <div className="flex items-center gap-2 flex-shrink-0">
                         <button
                           type="button"
-                          onClick={() => handleApproveApplication(viewingResumeApp)}
-                          disabled={approvingAppId === viewingResumeApp.id}
-                          className="px-3.5 py-1.5 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700 disabled:opacity-50 text-xs inline-flex items-center gap-1.5"
+                          onClick={() =>
+                            openResumeViewer({
+                              resumeUrl: viewingResumeUrl,
+                              fileName: (viewingResumeApp as any).resumeFileName || "Candidate Resume.pdf",
+                              candidateName:
+                                (viewingResumeApp as any).candidateName ||
+                                viewingCandidate?.name ||
+                                (viewingCandidate as any)?.displayName ||
+                                "Candidate",
+                              jobTitle: (viewingResumeApp as any).jobTitle || viewingJob?.title || "Role Application",
+                              candidateEmail: (viewingResumeApp as any).candidateEmail || viewingCandidate?.email,
+                            })
+                          }
+                          className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs inline-flex items-center gap-1.5 transition shadow-sm hover:scale-105 active:scale-95"
                         >
-                          <CheckCircle className="w-3.5 h-3.5" />
-                          <span>{approvingAppId === viewingResumeApp.id ? "Syncing..." : "Approve Application"}</span>
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>View Resume</span>
                         </button>
+                        <button
+                          type="button"                           onClick={() =>
+                            downloadResumeFile(
+                              viewingResumeUrl,
+                              (viewingResumeApp as any).resumeFileName || "resume.pdf"
+                            )
+                          }
+                          className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-850 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs font-semibold inline-flex items-center gap-1 transition"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          <span>Download</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Status & Switch Status Action Buttons */}
+                <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                  <div className="flex items-center justify-between gap-3 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center gap-2">
+                      <span className="text-slate-500 font-medium">Application Status:</span>
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                          viewingResumeApp.status === "Approved"
+                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                            : viewingResumeApp.status === "Rejected"
+                            ? "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300"
+                            : viewingResumeApp.status === "Cancelled"
+                            ? "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-300 dark:border-slate-700"
+                            : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                        }`}
+                      >
+                        {viewingResumeApp.status}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                    <button
+                      type="button"
+                      disabled={deletingAppId === viewingResumeApp.id}
+                      onClick={async () => {
+                        const cand = usersList.find((u) => u.uid === viewingResumeApp.uid);
+                        const cName = (viewingResumeApp as any).candidateName || cand?.name || (cand as any)?.displayName || "Candidate";
+                        const confirmed = await showConfirm(
+                          `Are you sure you want to delete the application for "${cName}"? This action cannot be undone.`,
+                          "Delete Application",
+                          {
+                            type: "danger",
+                            confirmText: "Yes, Delete",
+                            cancelText: "Cancel",
+                          }
+                        );
+                        if (confirmed) {
+                          setDeletingAppId(viewingResumeApp.id);
+                          try {
+                            if (deleteApplication) {
+                              await deleteApplication(viewingResumeApp.id);
+                            } else {
+                              await deleteApplicationInFirestore(viewingResumeApp.id);
+                              await refreshApplications();
+                            }
+                            setViewingResumeApp(null);
+                          } catch (err) {
+                            await showAlert("Failed to delete application.", "Error", "error");
+                          } finally {
+                            setDeletingAppId(null);
+                          }
+                        }
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/40 font-semibold text-xs inline-flex items-center gap-1.5 transition disabled:opacity-50"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>{deletingAppId === viewingResumeApp.id ? "Deleting..." : "Delete Application"}</span>
+                    </button>
+
+                    <div className="flex flex-wrap items-center justify-end gap-2 ml-auto">
+                      {/* First pending logic: initial decision if Pending */}
+                      {viewingResumeApp.status === "Pending" && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleApproveApplication(viewingResumeApp)}
+                            disabled={approvingAppId === viewingResumeApp.id}
+                            className="px-3.5 py-1.5 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700 disabled:opacity-50 text-xs inline-flex items-center gap-1.5"
+                          >
+                            <CheckCircle className="w-3.5 h-3.5" />
+                            <span>{approvingAppId === viewingResumeApp.id ? "Syncing..." : "Approve Application"}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRejectApplication(viewingResumeApp)}
+                            disabled={rejectingAppId === viewingResumeApp.id}
+                            className="px-3.5 py-1.5 rounded-lg bg-rose-600 text-white font-semibold hover:bg-rose-700 disabled:opacity-50 text-xs inline-flex items-center gap-1.5"
+                          >
+                            <XCircle className="w-3.5 h-3.5" />
+                            <span>Reject Application</span>
+                          </button>
+                        </>
+                      )}
+
+                      {/* Only one button: Switch Approved to Rejected */}
+                      {viewingResumeApp.status === "Approved" && (
                         <button
                           type="button"
                           onClick={() => handleRejectApplication(viewingResumeApp)}
@@ -1933,75 +2182,113 @@ export default function AdminPage() {
                           className="px-3.5 py-1.5 rounded-lg bg-rose-600 text-white font-semibold hover:bg-rose-700 disabled:opacity-50 text-xs inline-flex items-center gap-1.5"
                         >
                           <XCircle className="w-3.5 h-3.5" />
-                          <span>Reject Application</span>
+                          <span>Switch to Rejected</span>
                         </button>
-                      </>
-                    )}
+                      )}
 
-                    {/* Only one button: Switch Approved to Rejected */}
-                    {viewingResumeApp.status === "Approved" && (
+                      {/* Only one button: Switch Rejected to Approved */}
+                      {viewingResumeApp.status === "Rejected" && (
+                        <button
+                          type="button"
+                          onClick={() => handleApproveApplication(viewingResumeApp)}
+                          disabled={approvingAppId === viewingResumeApp.id}
+                          className="px-3.5 py-1.5 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700 disabled:opacity-50 text-xs inline-flex items-center gap-1.5"
+                        >
+                          <CheckCircle className="w-3.5 h-3.5" />
+                          <span>{approvingAppId === viewingResumeApp.id ? "Syncing..." : "Switch to Approved"}</span>
+                        </button>
+                      )}
+
                       <button
                         type="button"
-                        onClick={() => handleRejectApplication(viewingResumeApp)}
-                        disabled={rejectingAppId === viewingResumeApp.id}
-                        className="px-3.5 py-1.5 rounded-lg bg-rose-600 text-white font-semibold hover:bg-rose-700 disabled:opacity-50 text-xs inline-flex items-center gap-1.5"
+                        onClick={() => setViewingResumeApp(null)}
+                        className="ui-btn-secondary px-3.5 py-1.5 font-semibold rounded-lg text-xs hover:scale-105 active:scale-95 transition-transform"
                       >
-                        <XCircle className="w-3.5 h-3.5" />
-                        <span>Switch to Rejected</span>
+                        Close
                       </button>
-                    )}
-
-                    {/* Only one button: Switch Rejected to Approved */}
-                    {viewingResumeApp.status === "Rejected" && (
-                      <button
-                        type="button"
-                        onClick={() => handleApproveApplication(viewingResumeApp)}
-                        disabled={approvingAppId === viewingResumeApp.id}
-                        className="px-3.5 py-1.5 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700 disabled:opacity-50 text-xs inline-flex items-center gap-1.5"
-                      >
-                        <CheckCircle className="w-3.5 h-3.5" />
-                        <span>{approvingAppId === viewingResumeApp.id ? "Syncing..." : "Switch to Approved"}</span>
-                      </button>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={() => setViewingResumeApp(null)}
-                      className="ui-btn-secondary px-3.5 py-1.5 font-semibold rounded-lg text-xs hover:scale-105 active:scale-95 transition-transform"
-                    >
-                      Close
-                    </button>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+        )}
+      </AnimatePresence>
 
-    {/* Approval & External Sync Status Modal with Processing, Success & Warning Effects */}
-    <ApprovalSyncModal
-      isOpen={approvalModalState.isOpen}
-      status={approvalModalState.status}
-      candidateName={approvalModalState.candidateName}
-      candidateEmail={approvalModalState.candidateEmail}
-      jobTitle={approvalModalState.jobTitle}
-      errorDetails={approvalModalState.errorDetails}
-      onClose={() => setApprovalModalState((prev) => ({ ...prev, isOpen: false }))}
-      onRetry={handleRetryApprovalSync}
-    />
+      {/* Approval & External Sync Status Modal with Processing, Success & Warning Effects */}
+      <ApprovalSyncModal
+        isOpen={approvalModalState.isOpen}
+        status={approvalModalState.status}
+        candidateName={approvalModalState.candidateName}
+        candidateEmail={approvalModalState.candidateEmail}
+        jobTitle={approvalModalState.jobTitle}
+        errorDetails={approvalModalState.errorDetails}
+        onClose={() => setApprovalModalState((prev) => ({ ...prev, isOpen: false }))}
+        onRetry={handleRetryApprovalSync}
+      />
 
-    {/* Resume Document Viewer Window */}
-    <ResumeViewerModal
-      isOpen={resumeModalData.isOpen}
-      onClose={() => setResumeModalData((prev) => ({ ...prev, isOpen: false }))}
-      resumeUrl={resumeModalData.resumeUrl}
-      fileName={resumeModalData.fileName}
-      candidateName={resumeModalData.candidateName}
-      jobTitle={resumeModalData.jobTitle}
-      candidateEmail={resumeModalData.candidateEmail}
-    />
+      {/* Resume Document Viewer Window */}
+      <ResumeViewerModal
+        isOpen={resumeModalData.isOpen}
+        onClose={() => setResumeModalData((prev) => ({ ...prev, isOpen: false }))}
+        resumeUrl={resumeModalData.resumeUrl}
+        fileName={resumeModalData.fileName}
+        candidateName={resumeModalData.candidateName}
+        jobTitle={resumeModalData.jobTitle}
+        candidateEmail={resumeModalData.candidateEmail}
+      />
     </div>
   );
 }
+                         
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

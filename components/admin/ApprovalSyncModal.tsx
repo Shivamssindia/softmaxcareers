@@ -163,7 +163,7 @@ export const ApprovalSyncModal: React.FC<ApprovalSyncModalProps> = ({
                 <div className="flex justify-between items-center pt-0.5">
                   <span className="text-slate-400 font-medium">External Endpoint:</span>
                   <span className="font-mono text-[10px] text-indigo-600 dark:text-indigo-400 truncate max-w-[200px]">
-                    system.softmax.in/api/v1/external/consultant
+                    django.pywork.com/api/v1/external/consultant
                   </span>
                 </div>
               </div>
