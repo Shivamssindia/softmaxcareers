@@ -2,6 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   Code2,
   ExternalLink,
@@ -13,6 +14,12 @@ import {
 } from "lucide-react";
 
 export const Footer: React.FC = () => {
+  const pathname = usePathname();
+
+  // Requirement 15: Examination Page Layout Isolation - Do not render main website footer during examination
+  if (pathname?.startsWith("/exam/") && !pathname?.startsWith("/exam/admin")) {
+    return null;
+  }
   return (
     <footer className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0d111c] text-slate-600 dark:text-slate-400 text-sm transition-colors duration-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">

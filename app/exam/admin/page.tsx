@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
 import { useModal } from '@/context/ModalContext';
+import { useJobs } from '@/context/JobContext';
 import {
   subscribeToExams,
   createExamInFirestore,
@@ -35,12 +36,17 @@ import {
   UserPlus,
   CheckCircle,
   ArrowLeft,
+  Briefcase,
+  CheckSquare,
+  Square,
 } from 'lucide-react';
+import { TableSkeleton, ShimmerBlock } from '@/components/Shimmer';
 
 export default function ExamAdminPage() {
   const router = useRouter();
   const { user, loading } = useAuth();
   const { showAlert, showConfirm } = useModal();
+  const { jobs, applications } = useJobs();
 
   const [exams, setExams] = useState<Exam[]>([]);
   const [usersList, setUsersList] = useState<User[]>([]);
@@ -53,6 +59,9 @@ export default function ExamAdminPage() {
   const [enrollExam, setEnrollExam] = useState<Exam | null>(null);
   const [enrollSearch, setEnrollSearch] = useState('');
   const [selectedUids, setSelectedUids] = useState<string[]>([]);
+  const [selectedJobPostId, setSelectedJobPostId] = useState<string>('all');
+
+  const openJobs = useMemo(() => jobs.filter((j) => j.status === 'active'), [jobs]);
 
   // Live 1-second tick for real-time exam status transitions
   useEffect(() => {
@@ -145,7 +154,8 @@ export default function ExamAdminPage() {
     setFMaxViolations(exam.maxViolations);
     setFDescription(exam.description || '');
     setFInstructions(exam.instructions || '');
-    setFStatus(exam.status);
+    const current = computeExamStatus(exam, now);
+    setFStatus(exam.status === 'scheduled' && current === 'completed' ? 'completed' : exam.status);
     setIsFormOpen(true);
   };
 
@@ -170,6 +180,7 @@ export default function ExamAdminPage() {
           description: fDescription.trim() || undefined,
           instructions: fInstructions.trim() || undefined,
           status: fStatus,
+          isCompleted: fStatus === 'completed',
         });
       } else {
         await createExamInFirestore({
@@ -212,11 +223,19 @@ export default function ExamAdminPage() {
     setEnrollExam(exam);
     setEnrollSearch('');
     setSelectedUids([]);
+    setSelectedJobPostId('all');
   };
 
   const candidateUsers = useMemo(() => {
-    return usersList.filter((u) => u.role === 'candidate');
-  }, [usersList]);
+    const base = usersList.filter((u) => u.role === 'candidate');
+    if (selectedJobPostId === 'all') {
+      return base;
+    }
+    const appliedUids = new Set(
+      applications.filter((a) => a.jobId === selectedJobPostId).map((a) => a.uid)
+    );
+    return base.filter((u) => appliedUids.has(u.uid));
+  }, [usersList, applications, selectedJobPostId]);
 
   const filteredCandidates = useMemo(() => {
     if (!enrollSearch.trim()) return candidateUsers;
@@ -227,6 +246,21 @@ export default function ExamAdminPage() {
         (u.email || '').toLowerCase().includes(q)
     );
   }, [candidateUsers, enrollSearch]);
+
+  const availableCandidatesToSelect = useMemo(() => {
+    if (!enrollExam) return [];
+    return filteredCandidates.filter((u) => !isUserEnrolledInExam(enrollExam, u.uid));
+  }, [filteredCandidates, enrollExam]);
+
+  const handleSelectAll = () => {
+    const ids = availableCandidatesToSelect.map((u) => u.uid);
+    setSelectedUids((prev) => Array.from(new Set([...prev, ...ids])));
+  };
+
+  const handleDeselectAll = () => {
+    const idsToRemove = new Set(filteredCandidates.map((u) => u.uid));
+    setSelectedUids((prev) => prev.filter((id) => !idsToRemove.has(id)));
+  };
 
   const toggleSelect = (uid: string) => {
     setSelectedUids((prev) =>
@@ -281,9 +315,21 @@ export default function ExamAdminPage() {
   /* ==================== GUARDS ==================== */
   if (loading || !user || user.role !== 'admin') {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-3">
-        <div className="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-        <p className="text-xs text-slate-500">Checking admin privileges...</p>
+      <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <ShimmerBlock className="h-8 w-64 rounded-xl" />
+            <ShimmerBlock className="h-4 w-80 rounded" />
+          </div>
+          <ShimmerBlock className="h-10 w-32 rounded-xl" />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <ShimmerBlock className="h-20 rounded-2xl" />
+          <ShimmerBlock className="h-20 rounded-2xl" />
+          <ShimmerBlock className="h-20 rounded-2xl" />
+          <ShimmerBlock className="h-20 rounded-2xl" />
+        </div>
+        <TableSkeleton rows={5} cols={5} />
       </div>
     );
   }
@@ -541,7 +587,17 @@ export default function ExamAdminPage() {
                     <label className="block font-semibold mb-1">Status</label>
                     <select
                       value={fStatus}
-                      onChange={(e) => setFStatus(e.target.value as ExamStatus)}
+                      onChange={(e) => {
+                        const nextStatus = e.target.value as ExamStatus;
+                        setFStatus(nextStatus);
+                        if (editingExam && nextStatus === 'scheduled') {
+                          const n = new Date();
+                          const local = new Date(n.getTime() - n.getTimezoneOffset() * 60000)
+                            .toISOString()
+                            .slice(0, 16);
+                          setFDateTime(local);
+                        }
+                      }}
                       className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
                     >
                       <option value="draft">Draft</option>
@@ -621,27 +677,93 @@ export default function ExamAdminPage() {
                 </div>
                 <button
                   onClick={() => setEnrollExam(null)}
-                  className="p-1.5 text-slate-400 hover:text-slate-600"
+                  className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <div className="relative">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-                <input
-                  type="text"
-                  value={enrollSearch}
-                  onChange={(e) => setEnrollSearch(e.target.value)}
-                  placeholder="Search candidates by name or email..."
-                  className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
+              {/* Requirement 11: Filter Candidates by Open Job Posts */}
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 space-y-2">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Briefcase className="w-3.5 h-3.5 text-indigo-500" />
+                    Filter by Open Job Post ({openJobs.length} Active)
+                  </span>
+                  {selectedJobPostId !== 'all' && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedJobPostId('all')}
+                      className="text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline"
+                    >
+                      Show All Candidates
+                    </button>
+                  )}
+                </label>
+                <select
+                  value={selectedJobPostId}
+                  onChange={(e) => setSelectedJobPostId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="all">
+                    All Candidates ({usersList.filter((u) => u.role === 'candidate').length} total)
+                  </option>
+                  {openJobs.map((j) => {
+                    const applicants = applications.filter((a) => a.jobId === j.id).length;
+                    return (
+                      <option key={j.id} value={j.id}>
+                        {j.title} · {j.department} ({applicants} applicant{applicants === 1 ? '' : 's'})
+                      </option>
+                    );
+                  })}
+                </select>
+                {selectedJobPostId !== 'all' && (
+                  <p className="text-[11px] text-indigo-600 dark:text-indigo-400 font-medium">
+                    Filtering candidates who applied for{' '}
+                    <span className="font-semibold">
+                      {openJobs.find((j) => j.id === selectedJobPostId)?.title}
+                    </span>
+                  </p>
+                )}
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    value={enrollSearch}
+                    onChange={(e) => setEnrollSearch(e.target.value)}
+                    placeholder="Search candidate name or email..."
+                    className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleSelectAll}
+                    disabled={availableCandidatesToSelect.length === 0}
+                    className="px-2.5 py-1.5 rounded-lg border border-indigo-200 dark:border-indigo-800/60 bg-indigo-50/60 dark:bg-indigo-950/40 text-[11px] font-semibold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 disabled:opacity-40"
+                  >
+                    Select All ({availableCandidatesToSelect.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDeselectAll}
+                    disabled={selectedUids.length === 0}
+                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 disabled:opacity-40"
+                  >
+                    Clear
+                  </button>
+                </div>
               </div>
 
               <div className="max-h-80 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-xl divide-y divide-slate-100 dark:divide-slate-800">
                 {filteredCandidates.length === 0 ? (
                   <p className="p-6 text-center text-xs text-slate-400">
-                    No candidates found.
+                    {selectedJobPostId !== 'all'
+                      ? 'No candidates have applied for this job post yet.'
+                      : 'No candidates found.'}
                   </p>
                 ) : (
                   filteredCandidates.map((u) => {
@@ -673,12 +795,16 @@ export default function ExamAdminPage() {
                             {u.email}
                           </div>
                         </div>
-                        {enrolled && (
+                        {enrolled ? (
                           <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 inline-flex items-center gap-1">
                             <CheckCircle className="w-3 h-3" />
                             Enrolled
                           </span>
-                        )}
+                        ) : selected ? (
+                          <span className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400">
+                            Selected
+                          </span>
+                        ) : null}
                       </label>
                     );
                   })

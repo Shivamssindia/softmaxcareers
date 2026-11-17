@@ -54,6 +54,11 @@ export const Header: React.FC = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Requirement 15: Examination Page Layout Isolation - Do not render main website header during examination
+  if (pathname?.startsWith("/exam/") && !pathname?.startsWith("/exam/admin")) {
+    return null;
+  }
+
   // Candidate applications count
   const myApplicationsCount = user
     ? applications.filter(
@@ -87,7 +92,7 @@ export const Header: React.FC = () => {
   ];
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-white/95 dark:bg-[#111827]/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 transition-colors duration-200">
+    <header className="fixed top-0 z-40 w-full bg-white/95 dark:bg-[#111827]/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 transition-colors duration-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 sm:h-20">
           {/* Brand Logo */}
@@ -171,7 +176,7 @@ export const Header: React.FC = () => {
                 }`}
               >
                 <Briefcase className={`w-3.5 h-3.5 ${hasApprovedApp ? "text-emerald-600 dark:text-emerald-400" : "text-indigo-500"}`} />
-                <span>My Applications</span>
+                <span>Candidate Console</span>
                 {hasApprovedApp ? (
                   <span className="px-1.5 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-bold flex items-center gap-0.5 animate-pulse">
                     <span>Approved</span>
@@ -311,13 +316,15 @@ export const Header: React.FC = () => {
                 </AnimatePresence>
               </div>
             ) : (
-              <Link
-                href="/auth"
-                className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-2 rounded-lg shadow-sm transition flex items-center gap-1.5"
-              >
-                <User className="w-3.5 h-3.5" />
-                <span>Sign In</span>
-              </Link>
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/auth"
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-2 rounded-lg shadow-sm transition flex items-center gap-1.5"
+                >
+                  <User className="w-3.5 h-3.5" />
+                  <span>Sign In</span>
+                </Link>
+              </div>
             )}
           </div>
 
@@ -436,13 +443,22 @@ export const Header: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <div className="pt-3 border-t border-slate-200 dark:border-slate-800">
+              <div className="pt-3 border-t border-slate-200 dark:border-slate-800 grid grid-cols-2 gap-2">
+                <Link
+                  href="/candidate"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="py-2.5 text-center border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-slate-50 dark:hover:bg-slate-800"
+                >
+                  <Briefcase className="w-3.5 h-3.5 text-indigo-500" />
+                  <span>Candidate Console</span>
+                </Link>
                 <Link
                   href="/auth"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="block w-full py-2.5 text-center bg-indigo-600 text-white rounded-lg text-sm font-semibold shadow-sm"
+                  className="py-2.5 text-center bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-sm flex items-center justify-center gap-1.5"
                 >
-                  Sign In / Register
+                  <User className="w-3.5 h-3.5" />
+                  <span>Sign In</span>
                 </Link>
               </div>
             )}

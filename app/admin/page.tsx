@@ -25,6 +25,7 @@ import {
   deleteContactMessageFromFirestore,
   getUserByEmailFromFirestore,
   getUserFromFirestore,
+  getJobByIdFromFirestore,
   getContactFormSettings,
   updateContactFormSettings,
 } from "@/lib/firestore";
@@ -67,6 +68,7 @@ import {
   ResumeViewerModal,
   downloadResumeFile,
 } from "@/components/ResumeViewerModal";
+import { TableSkeleton, ShimmerBlock } from "@/components/Shimmer";
 
 // ============================================================================
 // Consultant payload shape (secret key now lives only on the server route)
@@ -82,6 +84,14 @@ type ConsultantCandidateData = {
   stream?: string;
   experience?: string;
   ctc?: string;
+  department?: string;
+  role?: string;
+  departments?: string[] | string;
+  roles?: string[] | string;
+  jobDepartment?: string;
+  jobRole?: string;
+  job_department?: string;
+  job_role?: string;
   marks10?: number;
   marks12?: number;
   graduationMarks?: number;
@@ -159,6 +169,7 @@ export default function AdminPage() {
     candidateName: string;
     candidateEmail?: string;
     jobTitle: string;
+    department?: string;
     errorDetails?: string;
   }>({
     isOpen: false,
@@ -167,6 +178,7 @@ export default function AdminPage() {
     candidateName: "",
     candidateEmail: "",
     jobTitle: "",
+    department: "",
   });
 
   // Application Filter States (Role, Status, Experience, Name)
@@ -189,6 +201,7 @@ export default function AdminPage() {
   const [formRequirements, setFormRequirements] = useState("");
   const [formTags, setFormTags] = useState("");
   const [formStatus, setFormStatus] = useState<"active" | "closed">("active");
+  const [formRequireResume, setFormRequireResume] = useState(true);
 
   // Route protection: only admin allowed
   useEffect(() => {
@@ -343,6 +356,7 @@ export default function AdminPage() {
     setFormRequirements("Strong problem solving.\nExperience with modern stacks.");
     setFormTags("Next.js, TypeScript, React");
     setFormStatus("active");
+    setFormRequireResume(true);
     setIsAddJobModalOpen(true);
   };
 
@@ -360,6 +374,9 @@ export default function AdminPage() {
     setFormRequirements(job.requirements.join("\n"));
     setFormTags(job.tags.join(", "));
     setFormStatus(job.status);
+    setFormRequireResume(
+      job.requireResume !== false && job.enableResumeUpload !== false
+    );
     setIsAddJobModalOpen(true);
   };
 
@@ -384,6 +401,8 @@ export default function AdminPage() {
           requirements,
           tags,
           status: formStatus,
+          requireResume: formRequireResume,
+          enableResumeUpload: formRequireResume,
         });
       } else {
         await addJob({
@@ -399,6 +418,8 @@ export default function AdminPage() {
           requirements,
           tags,
           status: formStatus,
+          requireResume: formRequireResume,
+          enableResumeUpload: formRequireResume,
         });
       }
       setIsAddJobModalOpen(false);
@@ -470,6 +491,31 @@ export default function AdminPage() {
         profile = await getUserByEmailFromFirestore((application as any).candidateEmail);
       }
 
+      // Requirement 14: Send department and role information to Nexus API
+      let appJob = jobs.find((j) => j.id === application.jobId);
+      if (!appJob && application.jobId) {
+        try {
+          appJob = (await getJobByIdFromFirestore(application.jobId)) || undefined;
+        } catch (fetchJobErr) {
+          console.warn("[consultant] could not fetch job by id from firestore:", fetchJobErr);
+        }
+      }
+
+      const targetDepartment =
+        appJob?.department ||
+        (application as any)?.department ||
+        (application as any)?.jobDepartment ||
+        profile?.department ||
+        "";
+
+      const targetRole =
+        appJob?.title ||
+        (application as any)?.jobTitle ||
+        (application as any)?.role ||
+        (application as any)?.jobRole ||
+        profile?.title ||
+        "";
+
       const candidate: ConsultantCandidateData = {
         uid: profile?.uid || uidFromApp || application.id,
         name: profile?.name || (profile as any)?.displayName || (application as any).candidateName || "",
@@ -481,10 +527,18 @@ export default function AdminPage() {
           profile?.skills && profile.skills.length > 0
             ? profile.skills.join(", ")
             : "",
-        skillType: (profile as any)?.skillType || profile?.department || "",
+        skillType: (profile as any)?.skillType || profile?.department || targetDepartment,
         stream: (profile as any)?.stream || "",
         experience: application.experienceYears || "",
-        ctc: String((profile as any)?.ctc ?? ""),
+        ctc: String(application.currentCtc || (profile as any)?.currentCtc || (profile as any)?.ctc || ""),
+        department: targetDepartment,
+        role: targetRole,
+        departments: targetDepartment ? [targetDepartment] : [],
+        roles: targetRole ? [targetRole] : [],
+        jobDepartment: targetDepartment,
+        jobRole: targetRole,
+        job_department: targetDepartment,
+        job_role: targetRole,
         marks10: Number((profile as any)?.marks10 ?? 0),
         marks12: Number((profile as any)?.marks12 ?? 0),
         graduationMarks: Number((profile as any)?.graduationMarks ?? 0),
@@ -530,11 +584,14 @@ export default function AdminPage() {
   // ==========================================================================
   // Application status handlers
   // ==========================================================================
-  const handleApproveApplication = async (app: JobApplication) => {
+  const 
+  handleApproveApplication = async (app: JobApplication) => {
     const cand = usersList.find((u) => u.uid === app.uid);
     const candName = (app as any).candidateName || cand?.name || (cand as any)?.displayName || "Candidate";
     const candEmail = (app as any).candidateEmail || cand?.email || "";
-    const jobTitle = (app as any).jobTitle || jobs.find((j) => j.id === app.jobId)?.title || "Role Application";
+    const appJob = jobs.find((j) => j.id === app.jobId);
+    const jobTitle = (app as any).jobTitle || appJob?.title || (cand as any)?.title || "Role Application";
+    const jobDepartment = appJob?.department || (app as any)?.department || (cand as any)?.department || "";
 
     setApprovingAppId(app.id);
 
@@ -545,6 +602,7 @@ export default function AdminPage() {
       candidateName: candName,
       candidateEmail: candEmail,
       jobTitle,
+      department: jobDepartment,
       errorDetails: undefined,
     });
 
@@ -875,9 +933,21 @@ export default function AdminPage() {
 
   if (loading || !user || user.role !== "admin") {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-3">
-        <div className="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-        <p className="text-xs text-slate-500">Checking admin privileges...</p>
+      <div className="max-w-7xl mx-auto py-10 sm:py-14 px-4 sm:px-6 lg:px-8 space-y-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-2">
+            <ShimmerBlock className="h-8 w-60 rounded-xl" />
+            <ShimmerBlock className="h-4 w-96 rounded" />
+          </div>
+          <ShimmerBlock className="h-10 w-36 rounded-xl" />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <ShimmerBlock className="h-24 rounded-2xl" />
+          <ShimmerBlock className="h-24 rounded-2xl" />
+          <ShimmerBlock className="h-24 rounded-2xl" />
+          <ShimmerBlock className="h-24 rounded-2xl" />
+        </div>
+        <TableSkeleton rows={6} cols={5} />
       </div>
     );
   }
@@ -1941,6 +2011,29 @@ export default function AdminPage() {
                   </select>
                 </div>
 
+                {/* Requirement 3: Job-Specific Configuration (e.g. Whether Resume is Required) */}
+                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="block font-semibold text-xs text-slate-900 dark:text-white">
+                        Require Candidate Resume *
+                      </span>
+                      <span className="text-[11px] text-slate-500">
+                        When enabled, candidates must provide an uploaded resume in their record before submitting.
+                      </span>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer ml-3 flex-shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={formRequireResume}
+                        onChange={(e) => setFormRequireResume(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-10 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                    </label>
+                  </div>
+                </div>
+
                 <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                   <button
                     type="button"
@@ -2222,6 +2315,7 @@ export default function AdminPage() {
         candidateName={approvalModalState.candidateName}
         candidateEmail={approvalModalState.candidateEmail}
         jobTitle={approvalModalState.jobTitle}
+        department={approvalModalState.department}
         errorDetails={approvalModalState.errorDetails}
         onClose={() => setApprovalModalState((prev) => ({ ...prev, isOpen: false }))}
         onRetry={handleRetryApprovalSync}

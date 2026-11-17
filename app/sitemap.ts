@@ -7,9 +7,12 @@ export const revalidate = 0;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = (
+    process.env.origin ||
+    process.env.ORIGIN ||
+    process.env.NEXT_PUBLIC_ORIGIN ||
     process.env.NEXT_PUBLIC_SITE_URL ||
     process.env.SITE_URL ||
-    "https://softmax.in"
+    "https://careers.softmax.in"
   ).replace(/\/+$/, "");
 
   const now = new Date();

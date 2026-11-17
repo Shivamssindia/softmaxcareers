@@ -45,6 +45,7 @@ import {
   ResumeViewerModal,
   downloadResumeFile,
 } from "@/components/ResumeViewerModal";
+import { ConsoleSkeleton } from "@/components/Shimmer";
 import {
   subscribeToExams,
   computeExamPhase,
@@ -129,6 +130,13 @@ export default function CandidateConsolePage() {
   const router = useRouter();
   const { user, loading } = useAuth();
   const { jobs, applications, updateApplicationStatus } = useJobs();
+
+  // Redirect unauthenticated candidates to sign in with redirect back to candidate console
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace("/auth?redirect=/candidate");
+    }
+  }, [user, loading, router]);
   const { showAlert, showConfirm } = useModal();
   const [cancellingAppId, setCancellingAppId] = useState<string | null>(null);
   const [showCelebrationModal, setShowCelebrationModal] = useState<boolean>(false);
@@ -416,63 +424,7 @@ export default function CandidateConsolePage() {
   /* ====================================================================== */
 
   if (loading || !user) {
-    return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-3">
-        <div className="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-        <p className="text-xs text-slate-500">Verifying authorization...</p>
-      </div>
-    );
-  }
-
-  /* ====================================================================== */
-  /* Profile completion guard                                               */
-  /* ====================================================================== */
-
-  if (user.role !== "admin" && !isProfileComplete(user)) {
-    const missingFields = getMissingProfileFields(user);
-    return (
-      <div className="max-w-3xl mx-auto py-10 sm:py-16 px-4 sm:px-6 space-y-6">
-        <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="p-4 sm:p-5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs sm:text-sm flex items-start gap-3.5 shadow-sm"
-        >
-          <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <h2 className="font-bold text-sm sm:text-base text-amber-900 dark:text-amber-100">
-              Profile Details Missing
-            </h2>
-            <p className="text-amber-800 dark:text-amber-300">
-              Your profile is currently missing some required information. Please
-              complete the profile form below to access your candidate console
-              and manage your job applications.
-            </p>
-            {missingFields.length > 0 && (
-              <div className="pt-1.5 flex flex-wrap gap-1.5 items-center">
-                <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400">
-                  Missing information:
-                </span>
-                {missingFields.map((field) => (
-                  <span
-                    key={field}
-                    className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200 border border-amber-200 dark:border-amber-800/60"
-                  >
-                    {field}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-        </motion.div>
-
-        <CompleteProfileForm
-          user={user}
-          onCompleted={() => {
-            router.refresh();
-          }}
-        />
-      </div>
-    );
+    return <ConsoleSkeleton />;
   }
 
   /* ====================================================================== */
@@ -527,6 +479,24 @@ export default function CandidateConsolePage() {
             <Briefcase className="w-4 h-4" />
             <span>Browse More Roles</span>
           </Link>
+        </div>
+      </motion.div>
+
+      {/* Requirement 13: Attendance & Examination Cancellation Policy Notice */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="p-4 rounded-2xl bg-amber-50/90 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs flex items-start gap-3 shadow-xs"
+      >
+        <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+        <div className="space-y-0.5">
+          <h2 className="font-bold text-xs uppercase tracking-wider text-amber-900 dark:text-amber-200">
+            Attendance & Examination Policy
+          </h2>
+          <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+            Please note: If a candidate fails to attend the scheduled VR interview or examination for any reason, their application will be rejected/cancelled.
+          </p>
         </div>
       </motion.div>
 
@@ -992,8 +962,7 @@ export default function CandidateConsolePage() {
                               </span>
                             </div>
                             <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-0.5">
-                              Your profile has been accepted. Continue to the
-                              SoftMax Nexus platform for onboarding.
+                              Your profile has been accepted. You can track the next steps of your application through Nexus.
                             </p>
                           </div>
                         </div>
@@ -1242,8 +1211,7 @@ export default function CandidateConsolePage() {
                           Application Approved!
                         </div>
                         <p className="text-[11px] text-emerald-700 dark:text-emerald-400">
-                          Welcome to SoftMax. Continue to nexus.softmax.in for
-                          onboarding resources.
+                          Welcome to SoftMax. You can track the next steps of your application through Nexus.
                         </p>
                       </div>
                     </div>

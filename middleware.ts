@@ -16,8 +16,8 @@ export function middleware(request: NextRequest) {
   // Protect Candidate Console: Only authenticated users with candidate (or admin) role can access
   if (pathname.startsWith("/candidate")) {
     if (role !== "candidate" && role !== "admin") {
-      const homeUrl = new URL("/", request.url);
-      return NextResponse.redirect(homeUrl);
+      const authUrl = new URL("/auth?redirect=%2Fcandidate", request.url);
+      return NextResponse.redirect(authUrl);
     }
   }
 

@@ -92,6 +92,11 @@ export function computeExamStatus(
     return "completed";
   }
 
+  // Active (Live) status is active forever
+  if (rawStatus === "active") {
+    return "active";
+  }
+
   const startTime = new Date(exam.examDateTime).getTime();
   if (isNaN(startTime)) {
     return "scheduled";
@@ -182,6 +187,11 @@ export function isExamPermittedTime(
       reason: "cancelled",
       message: "This exam has been cancelled by the administrator.",
     };
+  }
+
+  // Active (Live) status is permitted forever
+  if (currentStatus === "active" || String(exam.status || "").toLowerCase().trim() === "active") {
+    return { permitted: true };
   }
 
   const startTime = new Date(exam.examDateTime).getTime();
@@ -368,6 +378,7 @@ export function computeExamPhase(
   if (rawStatus === "cancelled" || rawStatus === "canceled") return "cancelled";
   if (rawStatus === "archived") return "completed";
   if (exam.isCompleted || exam.submittedAt) return "completed";
+  if (rawStatus === "active") return "in_progress";
 
   const start = new Date(exam.examDateTime).getTime();
   if (isNaN(start)) return "scheduled";

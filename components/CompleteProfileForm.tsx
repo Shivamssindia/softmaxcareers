@@ -22,6 +22,7 @@ import {
   FileCheck,
   Loader2,
   ArrowRight,
+  FilePen,
 } from "lucide-react";
 
 const DEPARTMENTS: DepartmentType[] = [
@@ -258,13 +259,10 @@ export const CompleteProfileForm: React.FC<CompleteProfileFormProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100 dark:border-slate-800">
         <div className="flex items-start gap-3.5">
           <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold text-lg shadow-sm flex-shrink-0">
-            <Sparkles className="w-6 h-6" />
+            <FilePen className="w-6 h-6" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-2.5 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-800/40">
-                Profile Setup
-              </span>
               <span className="text-xs text-slate-400 dark:text-slate-500">•</span>
               <span className="text-xs text-slate-500 font-medium">Complete Required Details</span>
             </div>

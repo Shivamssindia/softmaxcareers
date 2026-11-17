@@ -31,6 +31,7 @@ import {
   ExternalLink,
   Award,
   Zap,
+  FileText,
 } from "lucide-react";
 
 export default function JobDetailPage({
@@ -74,6 +75,25 @@ export default function JobDetailPage({
   const jobSlug = job ? getJobSlug(job) : "";
   const applyUrl = job ? `/apply/${jobSlug}` : "/openings";
   const isClosed = job?.status === "closed";
+  const isResumeRequired = job
+    ? job.requireResume !== false && job.enableResumeUpload !== false
+    : true;
+
+  const displayedResponsibilities = useMemo(() => {
+    if (!job?.responsibilities) return [];
+    if (isResumeRequired) return job.responsibilities;
+    return job.responsibilities.filter(
+      (resp) => !/(^|\b)(resume|curriculum vitae|\bcv\b)($|\b)/i.test(resp)
+    );
+  }, [job?.responsibilities, isResumeRequired]);
+
+  const displayedRequirements = useMemo(() => {
+    if (!job?.requirements) return [];
+    if (isResumeRequired) return job.requirements;
+    return job.requirements.filter(
+      (req) => !/(^|\b)(resume|curriculum vitae|\bcv\b)($|\b)/i.test(req)
+    );
+  }, [job?.requirements, isResumeRequired]);
 
   // Check if current user already applied
   const candidateApps = user ? getCandidateApplications(user.uid) : [];
@@ -268,6 +288,13 @@ export default function JobDetailPage({
                 <Clock className="w-3 h-3 text-slate-400" />
                 <span>{job.type}</span>
               </span>
+
+              {isResumeRequired && (
+                <span className="text-xs font-medium px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <FileText className="w-3 h-3 text-slate-400" />
+                  <span>Resume Required</span>
+                </span>
+              )}
             </div>
 
             <div className="flex items-center gap-2 text-xs">
@@ -424,7 +451,7 @@ export default function JobDetailPage({
             </section>
 
             {/* Key Responsibilities */}
-            {job.responsibilities && job.responsibilities.length > 0 && (
+            {displayedResponsibilities && displayedResponsibilities.length > 0 && (
               <section className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
                 <div className="flex items-center gap-2">
                   <Zap className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
@@ -433,7 +460,7 @@ export default function JobDetailPage({
                   </h2>
                 </div>
                 <ul className="space-y-3">
-                  {job.responsibilities.map((resp, idx) => (
+                  {displayedResponsibilities.map((resp, idx) => (
                     <li key={idx} className="flex items-start gap-3 text-xs sm:text-sm text-slate-700 dark:text-slate-300">
                       <CheckCircle2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400 flex-shrink-0 mt-0.5" />
                       <span className="leading-relaxed">{resp}</span>
@@ -444,7 +471,7 @@ export default function JobDetailPage({
             )}
 
             {/* Requirements & Qualifications */}
-            {job.requirements && job.requirements.length > 0 && (
+            {displayedRequirements && displayedRequirements.length > 0 && (
               <section className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
                 <div className="flex items-center gap-2">
                   <Award className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
@@ -453,7 +480,7 @@ export default function JobDetailPage({
                   </h2>
                 </div>
                 <ul className="space-y-3">
-                  {job.requirements.map((req, idx) => (
+                  {displayedRequirements.map((req, idx) => (
                     <li key={idx} className="flex items-start gap-3 text-xs sm:text-sm text-slate-700 dark:text-slate-300">
                       <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
                       <span className="leading-relaxed">{req}</span>
@@ -469,8 +496,8 @@ export default function JobDetailPage({
                 Ready to Join Our Team?
               </h3>
               <p className="text-xs sm:text-sm text-indigo-100 max-w-xl leading-relaxed">
-                We review applications on a rolling basis. Submit your details and resume
-                to jumpstart your career with SoftMax.
+                We review applications on a rolling basis. Submit your details
+                {isResumeRequired ? " and resume" : ""} to jumpstart your career with SoftMax.
               </p>
               <div className="pt-2 flex flex-wrap items-center gap-3">
                 {isClosed ? (

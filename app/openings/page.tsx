@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useJobs } from "@/context/JobContext";
 import { useAuth } from "@/context/AuthContext";
 import { JobCard } from "@/components/JobCard";
+import { JobGridSkeleton } from "@/components/Shimmer";
 import HeroBackgroundEffect from "@/components/HeroBackgroundEffect";
 import {
   Briefcase,
@@ -247,10 +248,7 @@ export default function OpeningsPage() {
 
       {/* Jobs Grid */}
       {loading ? (
-        <div className="py-16 text-center space-y-3">
-          <div className="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-xs text-slate-500">Loading open positions...</p>
-        </div>
+        <JobGridSkeleton count={6} />
       ) : filteredJobs.length > 0 ? (
         <motion.div
           layout

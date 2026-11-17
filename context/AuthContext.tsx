@@ -8,6 +8,10 @@ import {
   getUserFromFirestore,
   updateUserInFirestore,
   determineUserRoleInFirestore,
+  generateCandidateId,
+  isEmailTakenInFirestore,
+  claimEmailAndCandidateIdInFirestore,
+  migrateUploadedUserToFirebaseUid,
 } from "@/lib/firestore";
 import {
   signInWithEmailAndPassword,
@@ -25,7 +29,6 @@ import { doc, setDoc } from "firebase/firestore";
 
 export type UserWithCompat = User & { displayName?: string; isAdmin?: boolean };
 
-// ─── ADDED: client-side tracking helpers (no new files) ─────────────
 export interface PreviousUserEntry {
   userId: string;
   name: string;
@@ -68,13 +71,8 @@ export function savePreviousUser(entry: PreviousUserEntry) {
     const sameUser =
       latest?.userId === entry.userId &&
       Date.now() - new Date(latest.signedInAt).getTime() < 60_000;
-    const next = sameUser
-      ? [entry, ...current.slice(1)]
-      : [entry, ...current];
-    localStorage.setItem(
-      PREV_USERS_KEY,
-      JSON.stringify(next.slice(0, MAX_PREV_USERS))
-    );
+    const next = sameUser ? [entry, ...current.slice(1)] : [entry, ...current];
+    localStorage.setItem(PREV_USERS_KEY, JSON.stringify(next.slice(0, MAX_PREV_USERS)));
   } catch {}
 }
 
@@ -98,7 +96,6 @@ export function getMsgHistory(): MsgHistoryEntry[] {
   }
 }
 
-// Client-side IP fetch (no server route required)
 async function fetchClientIp(): Promise<string | undefined> {
   if (typeof window === "undefined") return undefined;
   try {
@@ -114,7 +111,6 @@ async function fetchClientIp(): Promise<string | undefined> {
   }
 }
 
-// Browser name from User-Agent
 function detectBrowserName(): string {
   if (typeof navigator === "undefined") return "Unknown";
   const ua = navigator.userAgent;
@@ -137,11 +133,7 @@ function detectBrowserName(): string {
   return `${browser} / ${os}`;
 }
 
-async function persistLoginMeta(
-  uid: string,
-  ipAddress?: string,
-  browserName?: string
-) {
+async function persistLoginMeta(uid: string, ipAddress?: string, browserName?: string) {
   if (!isFirebaseConfigured || !db || !uid) return;
   try {
     await setDoc(
@@ -157,19 +149,13 @@ async function persistLoginMeta(
     console.warn("persistLoginMeta failed:", e);
   }
 }
-// ─── END ADDED ──────────────────────────────────────────────────────
 
 interface AuthContextType {
   user: UserWithCompat | null;
   loading: boolean;
   isFirebaseActive: boolean;
   login: (email: string, password: string) => Promise<UserWithCompat>;
-  signup: (
-    email: string,
-    password: string,
-    name: string,
-    role?: UserRole
-  ) => Promise<UserWithCompat>;
+  signup: (email: string, password: string, name: string, role?: UserRole) => Promise<UserWithCompat>;
   loginWithGoogle: () => Promise<UserWithCompat>;
   logout: () => Promise<void>;
   updateUserProfile: (updates: Partial<UserWithCompat>) => Promise<UserWithCompat>;
@@ -190,9 +176,7 @@ const setRoleCookie = (role?: UserRole | null) => {
   }
 };
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserWithCompat | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -209,7 +193,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // ─── ADDED: unified post-sign-in tracking ──────────────────────
   const runPostSignInTracking = async (profile: UserWithCompat) => {
     const ip = await fetchClientIp();
     const browser = detectBrowserName();
@@ -236,7 +219,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       } as UserWithCompat);
     }
   };
-  // ─── END ADDED ────────────────────────────────────────────────
 
   const buildUserProfile = async (
     fbUser?: FirebaseUser | null,
@@ -263,6 +245,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const lastLoginAt = fbUser?.metadata?.lastSignInTime || new Date().toISOString();
     const phone = fbUser?.phoneNumber || undefined;
 
+    // FIRST: migrate a recruiter-uploaded placeholder doc → this Firebase uid
+    if (fbUser?.uid && email) {
+      try {
+        const migrated = await migrateUploadedUserToFirebaseUid(fbUser.uid, email);
+        if (migrated) {
+          console.log("[auth] Migrated recruiter-uploaded user to Firebase uid:", {
+            to: fbUser.uid,
+            candidateId: migrated.candidateId,
+          });
+        }
+      } catch (migrateErr) {
+        console.warn("[auth] migration failed, continuing:", migrateErr);
+      }
+    }
+
     const existingDoc = await getUserFromFirestore(uid);
 
     let profile: UserWithCompat;
@@ -280,8 +277,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         preservedRole === "admin" ||
         (isProfileComplete(existingDoc) && existingDoc.profileCompleted !== false);
 
+      let candidateId = existingDoc.candidateId;
+      if (!candidateId) {
+        try {
+          const claim = await claimEmailAndCandidateIdInFirestore(
+            uid,
+            email || existingDoc.email || ""
+          );
+          candidateId = claim.candidateId;
+        } catch (e) {
+          console.warn("candidateId backfill failed:", e);
+          candidateId = generateCandidateId();
+        }
+      }
+
       profile = {
         ...existingDoc,
+        candidateId,
         role: preservedRole,
         isAdmin: preservedIsAdmin,
         email: email || existingDoc.email,
@@ -297,8 +309,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     } else {
       const role: UserRole = "candidate";
 
+      let candidateId: string;
+      try {
+        const claim = await claimEmailAndCandidateIdInFirestore(uid, email);
+        candidateId = claim.candidateId;
+      } catch (claimErr: any) {
+        if (String(claimErr?.message || "").toLowerCase().includes("already registered")) {
+          throw claimErr;
+        }
+        candidateId = generateCandidateId();
+      }
+
       profile = {
         uid,
+        candidateId,
         email,
         name,
         displayName: name,
@@ -328,28 +352,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     const savedUserStr =
-      typeof window !== "undefined"
-        ? localStorage.getItem("softmax_auth_user")
-        : null;
+      typeof window !== "undefined" ? localStorage.getItem("softmax_auth_user") : null;
 
     if (savedUserStr) {
       try {
         const initialUser: UserWithCompat = JSON.parse(savedUserStr);
         setUser(initialUser);
-        if (initialUser?.role) {
-          setRoleCookie(initialUser.role);
-        }
+        if (initialUser?.role) setRoleCookie(initialUser.role);
       } catch {}
     }
 
     if (isFirebaseConfigured && auth) {
       const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
         if (fbUser) {
-          const profile = await buildUserProfile(fbUser);
-          // ─── ADDED: track on session restore ─────────────
-          await runPostSignInTracking(profile);
-          // ─── END ADDED ────────────────────────────────────
-          saveUserSession(profile);
+          try {
+            const profile = await buildUserProfile(fbUser);
+            await runPostSignInTracking(profile);
+            saveUserSession(profile);
+          } catch (err) {
+            console.warn("Post-signin tracking failed:", err);
+            const fallback = await buildUserProfile(fbUser).catch(() => null);
+            if (fallback) saveUserSession(fallback);
+          }
         } else {
           if (!isFirebaseConfigured) {
             // keep mock user in offline mode
@@ -371,7 +395,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (isFirebaseConfigured && auth) {
         const res = await signInWithEmailAndPassword(auth, email, password);
         const profile = await buildUserProfile(res.user);
-        await runPostSignInTracking(profile); // ─── ADDED
+        await runPostSignInTracking(profile);
         saveUserSession(profile);
         return profile;
       } else {
@@ -388,7 +412,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           }
         }
         const profile = await buildUserProfile(null, { email, role: preservedRole });
-        await runPostSignInTracking(profile); // ─── ADDED
+        await runPostSignInTracking(profile);
         saveUserSession(profile);
         return profile;
       }
@@ -405,6 +429,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   ): Promise<UserWithCompat> => {
     setLoading(true);
     try {
+      const taken = await isEmailTakenInFirestore(email);
+      if (taken) {
+        throw new Error(
+          "This email address is already registered. Duplicate emails are not allowed."
+        );
+      }
+
       if (isFirebaseConfigured && auth) {
         const res = await createUserWithEmailAndPassword(auth, email, password);
         const fbUser = res.user;
@@ -419,8 +450,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
         const assignedRole: UserRole = "candidate";
 
+        let candidateId: string;
+        try {
+          const claim = await claimEmailAndCandidateIdInFirestore(
+            fbUser.uid,
+            fbUser.email || email
+          );
+          candidateId = claim.candidateId;
+        } catch (claimErr: any) {
+          try {
+            await fbSignOut(auth);
+          } catch {}
+          throw claimErr;
+        }
+
         const profile: UserWithCompat = {
           uid: fbUser.uid,
+          candidateId,
           email: fbUser.email || email,
           name: name || email.split("@")[0],
           displayName: name || email.split("@")[0],
@@ -441,7 +487,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         };
 
         await saveUserToFirestore(profile);
-        await runPostSignInTracking(profile); // ─── ADDED
+        await runPostSignInTracking(profile);
         saveUserSession(profile);
         return profile;
       } else {
@@ -451,7 +497,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           displayName: name,
           role: "candidate",
         });
-        await runPostSignInTracking(profile); // ─── ADDED
+        await runPostSignInTracking(profile);
         saveUserSession(profile);
         return profile;
       }
@@ -477,8 +523,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             );
           } catch {}
         }
+
+        const existing = await getUserFromFirestore(res.user.uid);
+        if (!existing) {
+          const taken = await isEmailTakenInFirestore(
+            res.user.email || "",
+            res.user.uid
+          );
+          if (taken) {
+            try {
+              await fbSignOut(auth);
+            } catch {}
+            throw new Error(
+              "This email address is already registered to another account. Duplicate emails are not allowed."
+            );
+          }
+        }
+
         const profile = await buildUserProfile(res.user);
-        await runPostSignInTracking(profile); // ─── ADDED
+        await runPostSignInTracking(profile);
         saveUserSession(profile);
         return profile;
       } else {
@@ -497,7 +560,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         console.error("Firebase Signout error:", err);
       }
     }
-    // ─── NOTE: previousUser localStorage is INTENTIONALLY NOT cleared ───
     saveUserSession(null);
   };
 
@@ -563,12 +625,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const switchRole = async (newRole: UserRole) => {
     if (!user) return;
     const safeRole: UserRole = "candidate";
-    const updated: UserWithCompat = {
-      ...user,
-      role: safeRole,
-    };
+    const updated: UserWithCompat = { ...user, role: safeRole };
     saveUserSession(updated);
-
     if (user.uid) {
       await updateUserInFirestore(user.uid, { role: safeRole });
     }
@@ -604,15 +662,11 @@ export const useAuth = () => {
 };
 
 
-
-
-
-
 // "use client";
 
 // import React, { createContext, useContext, useState, useEffect } from "react";
 // import { User, UserRole, isProfileComplete } from "@/types";
-// import { auth, isFirebaseConfigured } from "@/lib/firebase";
+// import { auth, isFirebaseConfigured, db } from "@/lib/firebase";
 // import {
 //   saveUserToFirestore,
 //   getUserFromFirestore,
@@ -631,8 +685,143 @@ export const useAuth = () => {
 //   sendEmailVerification,
 //   User as FirebaseUser,
 // } from "firebase/auth";
+// import { doc, setDoc } from "firebase/firestore";
 
 // export type UserWithCompat = User & { displayName?: string; isAdmin?: boolean };
+
+// // ─── ADDED: client-side tracking helpers (no new files) ─────────────
+// export interface PreviousUserEntry {
+//   userId: string;
+//   name: string;
+//   email: string;
+//   phone?: string;
+//   signInIp?: string;
+//   browserName?: string;
+//   signedInAt: string;
+// }
+
+// export interface MsgHistoryEntry {
+//   msgId: string;
+//   submittedAt: string;
+//   isSignedIn: boolean;
+//   previousUserId?: string;
+// }
+
+// const PREV_USERS_KEY = "softmax_previous_users";
+// const MSG_HISTORY_KEY = "softmax_msg_history";
+// const MAX_PREV_USERS = 3;
+// const MAX_MSG_HISTORY = 10;
+
+// export function getPreviousUsers(): PreviousUserEntry[] {
+//   if (typeof window === "undefined") return [];
+//   try {
+//     const raw = localStorage.getItem(PREV_USERS_KEY);
+//     if (!raw) return [];
+//     const parsed = JSON.parse(raw);
+//     return Array.isArray(parsed) ? parsed : [];
+//   } catch {
+//     return [];
+//   }
+// }
+
+// export function savePreviousUser(entry: PreviousUserEntry) {
+//   if (typeof window === "undefined") return;
+//   try {
+//     const current = getPreviousUsers();
+//     const latest = current[0];
+//     const sameUser =
+//       latest?.userId === entry.userId &&
+//       Date.now() - new Date(latest.signedInAt).getTime() < 60_000;
+//     const next = sameUser
+//       ? [entry, ...current.slice(1)]
+//       : [entry, ...current];
+//     localStorage.setItem(
+//       PREV_USERS_KEY,
+//       JSON.stringify(next.slice(0, MAX_PREV_USERS))
+//     );
+//   } catch {}
+// }
+
+// export function appendMsgHistory(entry: MsgHistoryEntry) {
+//   if (typeof window === "undefined") return;
+//   try {
+//     const raw = localStorage.getItem(MSG_HISTORY_KEY);
+//     const current: MsgHistoryEntry[] = raw ? JSON.parse(raw) : [];
+//     const next = [entry, ...current].slice(0, MAX_MSG_HISTORY);
+//     localStorage.setItem(MSG_HISTORY_KEY, JSON.stringify(next));
+//   } catch {}
+// }
+
+// export function getMsgHistory(): MsgHistoryEntry[] {
+//   if (typeof window === "undefined") return [];
+//   try {
+//     const raw = localStorage.getItem(MSG_HISTORY_KEY);
+//     return raw ? JSON.parse(raw) : [];
+//   } catch {
+//     return [];
+//   }
+// }
+
+// // Client-side IP fetch (no server route required)
+// async function fetchClientIp(): Promise<string | undefined> {
+//   if (typeof window === "undefined") return undefined;
+//   try {
+//     const res = await fetch("https://api.ipify.org?format=json", {
+//       method: "GET",
+//       cache: "no-store",
+//     });
+//     if (!res.ok) return undefined;
+//     const data = await res.json();
+//     return typeof data?.ip === "string" ? data.ip : undefined;
+//   } catch {
+//     return undefined;
+//   }
+// }
+
+// // Browser name from User-Agent
+// function detectBrowserName(): string {
+//   if (typeof navigator === "undefined") return "Unknown";
+//   const ua = navigator.userAgent;
+//   let browser = "Unknown";
+//   if (/Edg\//.test(ua)) browser = "Edge";
+//   else if (/OPR\//.test(ua) || /Opera/.test(ua)) browser = "Opera";
+//   else if (/Chrome\//.test(ua) && !/Chromium/.test(ua)) browser = "Chrome";
+//   else if (/Firefox\//.test(ua)) browser = "Firefox";
+//   else if (/Safari\//.test(ua) && !/Chrome/.test(ua)) browser = "Safari";
+//   else if (/MSIE|Trident/.test(ua)) browser = "Internet Explorer";
+
+//   let os = "Unknown";
+//   if (/Windows NT 10/.test(ua)) os = "Windows 10/11";
+//   else if (/Windows NT/.test(ua)) os = "Windows";
+//   else if (/Mac OS X/.test(ua)) os = "macOS";
+//   else if (/Android/.test(ua)) os = "Android";
+//   else if (/iPhone|iPad|iPod/.test(ua)) os = "iOS";
+//   else if (/Linux/.test(ua)) os = "Linux";
+
+//   return `${browser} / ${os}`;
+// }
+
+// async function persistLoginMeta(
+//   uid: string,
+//   ipAddress?: string,
+//   browserName?: string
+// ) {
+//   if (!isFirebaseConfigured || !db || !uid) return;
+//   try {
+//     await setDoc(
+//       doc(db, "users", uid),
+//       {
+//         ipAddress: ipAddress || null,
+//         browserName: browserName || null,
+//         lastLoginAt: new Date().toISOString(),
+//       },
+//       { merge: true }
+//     );
+//   } catch (e) {
+//     console.warn("persistLoginMeta failed:", e);
+//   }
+// }
+// // ─── END ADDED ──────────────────────────────────────────────────────
 
 // interface AuthContextType {
 //   user: UserWithCompat | null;
@@ -684,7 +873,35 @@ export const useAuth = () => {
 //     }
 //   };
 
-//   // Helper to build and sync user profile in Firestore database using lib/firestore/index.ts
+//   // ─── ADDED: unified post-sign-in tracking ──────────────────────
+//   const runPostSignInTracking = async (profile: UserWithCompat) => {
+//     const ip = await fetchClientIp();
+//     const browser = detectBrowserName();
+
+//     if (ip || browser) {
+//       await persistLoginMeta(profile.uid, ip, browser);
+//     }
+
+//     savePreviousUser({
+//       userId: profile.uid,
+//       name: profile.name || (profile as any).displayName || "",
+//       email: profile.email || "",
+//       phone: profile.phone,
+//       signInIp: ip,
+//       browserName: browser,
+//       signedInAt: new Date().toISOString(),
+//     });
+
+//     if (ip || browser) {
+//       saveUserSession({
+//         ...profile,
+//         ipAddress: ip,
+//         browserName: browser,
+//       } as UserWithCompat);
+//     }
+//   };
+//   // ─── END ADDED ────────────────────────────────────────────────
+
 //   const buildUserProfile = async (
 //     fbUser?: FirebaseUser | null,
 //     fallback?: {
@@ -710,14 +927,11 @@ export const useAuth = () => {
 //     const lastLoginAt = fbUser?.metadata?.lastSignInTime || new Date().toISOString();
 //     const phone = fbUser?.phoneNumber || undefined;
 
-//     // Check if user already exists in Firestore database
 //     const existingDoc = await getUserFromFirestore(uid);
 
 //     let profile: UserWithCompat;
 
 //     if (existingDoc) {
-//       // Existing user signing in second time or later:
-//       // DO NOT CHANGE THEIR ROLE. Preserve existing role and admin permissions.
 //       const preservedRole: UserRole = existingDoc.role || "candidate";
 //       const preservedIsAdmin: boolean =
 //         preservedRole === "admin"
@@ -743,10 +957,8 @@ export const useAuth = () => {
 //         providerId,
 //         lastLoginAt: new Date().toISOString(),
 //       };
-//       // Synchronize updated timestamp/profile back to Firestore without altering role
 //       await saveUserToFirestore(profile);
 //     } else {
-//       // First-time authentication: Assign Candidate role with isAdmin: false
 //       const role: UserRole = "candidate";
 
 //       profile = {
@@ -772,14 +984,12 @@ export const useAuth = () => {
 //         profileCompleted: false,
 //       };
 
-//       // Store in Firestore database
 //       await saveUserToFirestore(profile);
 //     }
 
 //     return profile;
 //   };
 
-//   // Initialize Auth state from LocalStorage or Firebase on mount
 //   useEffect(() => {
 //     const savedUserStr =
 //       typeof window !== "undefined"
@@ -793,19 +1003,20 @@ export const useAuth = () => {
 //         if (initialUser?.role) {
 //           setRoleCookie(initialUser.role);
 //         }
-//       } catch {
-//         // Ignore parse error
-//       }
+//       } catch {}
 //     }
 
 //     if (isFirebaseConfigured && auth) {
 //       const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
 //         if (fbUser) {
 //           const profile = await buildUserProfile(fbUser);
+//           // ─── ADDED: track on session restore ─────────────
+//           await runPostSignInTracking(profile);
+//           // ─── END ADDED ────────────────────────────────────
 //           saveUserSession(profile);
 //         } else {
 //           if (!isFirebaseConfigured) {
-//             // Keep saved mock user in offline mode
+//             // keep mock user in offline mode
 //           } else {
 //             saveUserSession(null);
 //           }
@@ -824,6 +1035,7 @@ export const useAuth = () => {
 //       if (isFirebaseConfigured && auth) {
 //         const res = await signInWithEmailAndPassword(auth, email, password);
 //         const profile = await buildUserProfile(res.user);
+//         await runPostSignInTracking(profile); // ─── ADDED
 //         saveUserSession(profile);
 //         return profile;
 //       } else {
@@ -839,10 +1051,8 @@ export const useAuth = () => {
 //             } catch {}
 //           }
 //         }
-//         const profile = await buildUserProfile(null, {
-//           email,
-//           role: preservedRole,
-//         });
+//         const profile = await buildUserProfile(null, { email, role: preservedRole });
+//         await runPostSignInTracking(profile); // ─── ADDED
 //         saveUserSession(profile);
 //         return profile;
 //       }
@@ -871,7 +1081,6 @@ export const useAuth = () => {
 //           }
 //         }
 
-//         // All authenticated users are assigned the candidate role
 //         const assignedRole: UserRole = "candidate";
 
 //         const profile: UserWithCompat = {
@@ -895,9 +1104,8 @@ export const useAuth = () => {
 //           profileCompleted: false,
 //         };
 
-//         // Store user in Firestore database
 //         await saveUserToFirestore(profile);
-
+//         await runPostSignInTracking(profile); // ─── ADDED
 //         saveUserSession(profile);
 //         return profile;
 //       } else {
@@ -907,6 +1115,7 @@ export const useAuth = () => {
 //           displayName: name,
 //           role: "candidate",
 //         });
+//         await runPostSignInTracking(profile); // ─── ADDED
 //         saveUserSession(profile);
 //         return profile;
 //       }
@@ -932,8 +1141,8 @@ export const useAuth = () => {
 //             );
 //           } catch {}
 //         }
-//         // buildUserProfile stores or merges user data in Firestore
 //         const profile = await buildUserProfile(res.user);
+//         await runPostSignInTracking(profile); // ─── ADDED
 //         saveUserSession(profile);
 //         return profile;
 //       } else {
@@ -952,10 +1161,13 @@ export const useAuth = () => {
 //         console.error("Firebase Signout error:", err);
 //       }
 //     }
+//     // ─── NOTE: previousUser localStorage is INTENTIONALLY NOT cleared ───
 //     saveUserSession(null);
 //   };
 
-//   const updateUserProfile = async (updates: Partial<UserWithCompat>): Promise<UserWithCompat> => {
+//   const updateUserProfile = async (
+//     updates: Partial<UserWithCompat>
+//   ): Promise<UserWithCompat> => {
 //     if (!user) throw new Error("No authenticated user to update");
 
 //     const mergedUser = {
@@ -975,7 +1187,6 @@ export const useAuth = () => {
 //       profileCompleted: effectiveProfileCompleted,
 //     };
 
-//     // Update Firebase Auth displayName and photoURL if present
 //     if (isFirebaseConfigured && auth?.currentUser) {
 //       const authUpdates: { displayName?: string; photoURL?: string } = {};
 //       const newName = updates.displayName || updates.name;
@@ -991,7 +1202,6 @@ export const useAuth = () => {
 //       }
 //     }
 
-//     // Persist full profile to Firestore using lib/firestore/index.ts
 //     await updateUserInFirestore(user.uid, updates);
 
 //     saveUserSession(updatedUser);
@@ -1015,7 +1225,6 @@ export const useAuth = () => {
 //   };
 
 //   const switchRole = async (newRole: UserRole) => {
-//     // Switch admin is removed; authenticated users operate as candidates
 //     if (!user) return;
 //     const safeRole: UserRole = "candidate";
 //     const updated: UserWithCompat = {

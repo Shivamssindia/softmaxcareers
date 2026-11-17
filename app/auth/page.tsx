@@ -5,8 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
-import { UserRole, isProfileComplete } from "@/types";
-import { CompleteProfileForm } from "@/components/CompleteProfileForm";
+import { UserRole } from "@/types";
 import {
   CheckCircle2,
   AlertCircle,
@@ -15,7 +14,6 @@ import {
   Home,
   Shield,
   Sparkles,
-  Zap,
 } from "lucide-react";
 
 function AuthContent() {
@@ -34,8 +32,6 @@ function AuthContent() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [completionUser, setCompletionUser] = useState<any | null>(null);
-
   const handlePostAuthRedirect = (targetRole?: UserRole) => {
     if (redirectParam) {
       router.replace(decodeURIComponent(redirectParam));
@@ -47,14 +43,9 @@ function AuthContent() {
   };
 
   const handlePostAuthSuccess = (authenticatedUser: any) => {
-    // If candidate's profile is not complete, show completion form immediately
-    if (authenticatedUser.role !== "admin" && !isProfileComplete(authenticatedUser)) {
-      setCompletionUser(authenticatedUser);
-      setSubmitting(false);
-      return;
-    }
-
-    setSuccessMsg(`Welcome, ${authenticatedUser.name || authenticatedUser.displayName}! Redirecting...`);
+    setSuccessMsg(
+      `Welcome, ${authenticatedUser.name || authenticatedUser.displayName || "Candidate"}! Redirecting...`
+    );
     setTimeout(() => {
       handlePostAuthRedirect(authenticatedUser.role);
     }, 500);
@@ -86,44 +77,7 @@ function AuthContent() {
     }
   };
 
-  // Instant 1-click Candidate Authentication (no ID/password input required)
-  const handleInstantCandidateAuth = async () => {
-    setError(null);
-    setSubmitting(true);
-    try {
-      const candidateUser = await login("candidate@softmax.in", "candidate123");
-      handlePostAuthSuccess(candidateUser);
-    } catch (err: any) {
-      setError(formatFirebaseError(err));
-      setSubmitting(false);
-    }
-  };
-
-  // If candidate needs to complete profile right after sign in
-  const activeCompletionUser =
-    completionUser ||
-    (!loading && user && user.role !== "admin" && !isProfileComplete(user)
-      ? user
-      : null);
-
-  if (activeCompletionUser) {
-    return (
-      <div className="w-full max-w-2xl mx-auto py-4">
-        <CompleteProfileForm
-          user={activeCompletionUser}
-          redirectUrl={redirectParam ? decodeURIComponent(redirectParam) : undefined}
-          onCompleted={() => {
-            const dest = `/profile?completed=true${
-              redirectParam ? `&redirect=${encodeURIComponent(redirectParam)}` : ""
-            }`;
-            router.replace(dest);
-          }}
-        />
-      </div>
-    );
-  }
-
-  // If already signed in with a complete profile
+  // If already signed in
   if (!loading && user) {
     return (
       <motion.div
@@ -263,9 +217,8 @@ function AuthContent() {
         )}
       </AnimatePresence>
 
-      {/* Authentication Options (No ID / Password Inputs) */}
+      {/* Authentication Option: Google Authentication */}
       <div className="space-y-3 pt-2">
-        {/* Primary Option: Google Authentication */}
         <button
           type="button"
           onClick={handleGoogleAuth}
@@ -291,17 +244,6 @@ function AuthContent() {
             />
           </svg>
           <span>{submitting ? "Signing in..." : "Continue with Google"}</span>
-        </button>
-
-        {/* Secondary Instant Candidate Authentication (1-Click) */}
-        <button
-          type="button"
-          onClick={handleInstantCandidateAuth}
-          disabled={submitting}
-          className="w-full py-3 px-4 rounded-xl border border-indigo-200 dark:border-indigo-800/60 bg-indigo-50/70 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300 text-xs font-semibold hover:bg-indigo-100/70 dark:hover:bg-indigo-900/40 transition flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50"
-        >
-          <Zap className="w-4 h-4 text-indigo-500" />
-          <span>One-Click Candidate Sign In</span>
         </button>
       </div>
 

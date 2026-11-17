@@ -138,43 +138,81 @@ export default function ExamPage() {
 
   /* ==================== CAMERA ==================== */
 
-  const startCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
-        audio: true,
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
+  const attachStreamToVideo = (stream: MediaStream) => {
+    if (videoRef.current) {
+      if (videoRef.current.srcObject !== stream) {
         videoRef.current.srcObject = stream;
-        videoRef.current.onloadedmetadata = () => {
-          videoRef.current
-            ?.play()
-            .then(() =>
-              setExamState((p) => ({ ...p, cameraActive: true, videoInitialized: true }))
-            )
-            .catch(() => {
-              setTimeout(() => {
-                videoRef.current
-                  ?.play()
-                  .then(() =>
-                    setExamState((p) => ({
-                      ...p,
-                      cameraActive: true,
-                      videoInitialized: true,
-                    }))
-                  )
-                  .catch(() => {});
-              }, 500);
-            });
-        };
-        videoRef.current.load();
       }
-    } catch (err) {
-      setExamState((p) => ({ ...p, cameraError: true }));
+      videoRef.current
+        .play()
+        .then(() => {
+          setExamState((p) => ({ ...p, cameraActive: true, videoInitialized: true, cameraError: false }));
+        })
+        .catch(() => {
+          setTimeout(() => {
+            videoRef.current
+              ?.play()
+              .then(() =>
+                setExamState((p) => ({
+                  ...p,
+                  cameraActive: true,
+                  videoInitialized: true,
+                  cameraError: false,
+                }))
+              )
+              .catch(() => {});
+          }, 400);
+        });
+    }
+  };
+
+  const startCamera = async () => {
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      setExamState((p) => ({ ...p, cameraError: true, cameraActive: false }));
+      showWarning('⚠️ Camera is not supported on this browser or environment.');
+      return;
+    }
+
+    try {
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+          audio: true,
+        });
+      } catch {
+        // Fallback to video only if microphone is unavailable or denied
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+        });
+      }
+
+      streamRef.current = stream;
+
+      // Track continuous operation and disconnection
+      stream.getVideoTracks().forEach((track) => {
+        track.onended = () => {
+          setExamState((p) => ({ ...p, cameraActive: false }));
+          if (examState.examStarted && !examState.examLocked) {
+            incrementViolation('Camera disconnected');
+          }
+        };
+      });
+
+      attachStreamToVideo(stream);
+    } catch (err: any) {
+      console.warn('Camera permission or device error:', err);
+      setExamState((p) => ({ ...p, cameraError: true, cameraActive: false }));
       showWarning('⚠️ Camera access required! Please allow camera permissions.');
     }
   };
+
+  // Re-attach stream whenever view transitions between instructions and active form
+  useEffect(() => {
+    if (streamRef.current && (examState.showInstructions || examState.showForm)) {
+      attachStreamToVideo(streamRef.current);
+    }
+  }, [examState.showInstructions, examState.showForm]);
 
   /* ==================== HELPERS ==================== */
 
@@ -289,12 +327,15 @@ export default function ExamPage() {
     intervalRef.current = setInterval(() => {
       if (examState.examLocked || !examState.examStarted) return;
       if (exam) {
-        const start = new Date(exam.examDateTime).getTime();
-        const end = start + (Number(exam.durationMinutes) || 60) * 60 * 1000;
-        if (Date.now() > end) {
-          setPhase('completed');
-          setExamState((p) => ({ ...p, examStarted: false, showForm: false }));
-          return;
+        const rawStatus = String(exam.status || '').toLowerCase().trim();
+        if (rawStatus !== 'active') {
+          const start = new Date(exam.examDateTime).getTime();
+          const end = start + (Number(exam.durationMinutes) || 60) * 60 * 1000;
+          if (Date.now() > end) {
+            setPhase('completed');
+            setExamState((p) => ({ ...p, examStarted: false, showForm: false }));
+            return;
+          }
         }
       }
       const isFull = document.fullscreenElement !== null;
@@ -304,8 +345,9 @@ export default function ExamPage() {
           setTimeout(() => window.location.reload(), 100);
         }
       }
-      if (!examState.cameraActive && !examState.examLocked) {
-        incrementViolation('Camera turned off');
+      const hasLiveTrack = streamRef.current?.getVideoTracks().some((t) => t.readyState === 'live');
+      if ((!examState.cameraActive || !hasLiveTrack) && !examState.examLocked) {
+        incrementViolation('Camera turned off or disconnected');
       }
     }, 300);
   };
@@ -568,16 +610,7 @@ export default function ExamPage() {
                 </p>
               </div>
             </div>
-            {exam.examResourceLink && (
-              <a
-                href={exam.examResourceLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm px-6 py-3 rounded-xl transition"
-              >
-                Open Exam Resource
-              </a>
-            )}
+
             {exam.instructions && (
               <p className="text-slate-400 text-xs mt-4">{exam.instructions}</p>
             )}

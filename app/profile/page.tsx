@@ -32,9 +32,11 @@ import {
   ArrowRight,
   RotateCcw,
   Building,
+  DollarSign,
 } from "lucide-react";
 import { uploadResume, deleteResume } from "@/lib/resumeStorage";
 import { ResumeViewerModal } from "@/components/ResumeViewerModal";
+import { ProfileSkeleton } from "@/components/Shimmer";
 
 const DEPARTMENTS: DepartmentType[] = [
   "Web Development",
@@ -69,6 +71,7 @@ function ProfileContent() {
 
   const [verificationSent, setVerificationSent] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isCompleteProfileModalOpen, setIsCompleteProfileModalOpen] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState<string | null>(
     justCompletedParam ? "Profile completed successfully! Welcome to your SoftMax profile." : null
   );
@@ -83,6 +86,8 @@ function ProfileContent() {
   const [editBio, setEditBio] = useState("");
   const [editSkills, setEditSkills] = useState("");
   const [editPortfolio, setEditPortfolio] = useState("");
+  const [editCtc, setEditCtc] = useState("");
+  const [editNoticePeriod, setEditNoticePeriod] = useState("Immediate (0 - 15 Days)");
 
   // Resume State
   const [resumeLoading, setResumeLoading] = useState(false);
@@ -231,6 +236,8 @@ function ProfileContent() {
     setEditBio(user.bio || "");
     setEditSkills(user.skills ? user.skills.join(", ") : "");
     setEditPortfolio(user.portfolioUrl || "");
+    setEditCtc((user as any).currentCtc || "");
+    setEditNoticePeriod((user as any).noticePeriod || "Immediate (0 - 15 Days)");
     setIsEditModalOpen(true);
   };
 
@@ -303,6 +310,8 @@ function ProfileContent() {
         bio: editBio.trim(),
         skills: skillsArray,
         portfolioUrl: editPortfolio.trim() || undefined,
+        currentCtc: editCtc.trim() || undefined,
+        noticePeriod: editNoticePeriod.trim() || undefined,
         profileCompleted: true,
       });
 
@@ -325,28 +334,6 @@ function ProfileContent() {
     }
   };
 
-  // Reset profile for demo/testing purposes
-  const handleResetProfileForDemo = async () => {
-    const confirmed = await showConfirm(
-      "This will reset your profile completion flag so you can test the 'Complete Profile' form workflow from scratch.\n\nWould you like to reset now?",
-      "Reset Profile for Demo Testing",
-      {
-        type: "info",
-        confirmText: "Yes, Reset for Demo",
-        cancelText: "Cancel",
-      }
-    );
-    if (!confirmed) return;
-
-    await updateUserProfile({
-      profileCompleted: false,
-      phone: undefined,
-      title: undefined,
-      bio: undefined,
-      skills: [],
-    });
-    router.replace("/profile?complete=true");
-  };
 
   const handleSignOut = async () => {
     await logout();
@@ -363,65 +350,12 @@ function ProfileContent() {
     : 0;
 
   if (loading || !user) {
-    return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-3">
-        <div className="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-        <p className="text-xs text-slate-500">Loading user profile...</p>
-      </div>
-    );
+    return <ProfileSkeleton />;
   }
 
-  // If candidate's profile is not complete (or URL requests ?complete=true)
-  if (user.role !== "admin" && (!isProfileComplete(user) || forceCompleteParam)) {
-    const missingFields = getMissingProfileFields(user);
-    return (
-      <div className="max-w-3xl mx-auto py-10 sm:py-16 px-4 sm:px-6 space-y-6">
-        {missingFields.length > 0 && !forceCompleteParam && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="p-4 sm:p-5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs sm:text-sm flex items-start gap-3.5 shadow-sm"
-          >
-            <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-            <div className="space-y-1">
-              <strong className="font-bold block text-sm sm:text-base text-amber-900 dark:text-amber-100">
-                Profile Details Incomplete
-              </strong>
-              <p className="text-amber-800 dark:text-amber-300">
-                Some required information is missing from your profile. Please complete the details below to unlock your full profile.
-              </p>
-              <div className="pt-1 flex flex-wrap gap-1.5 items-center">
-                <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400">
-                  Missing information:
-                </span>
-                {missingFields.map((field) => (
-                  <span
-                    key={field}
-                    className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200 border border-amber-200 dark:border-amber-800/60"
-                  >
-                    {field}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </motion.div>
-        )}
+  const missingProfileFields = getMissingProfileFields(user);
+  const profileNeedsCompletion = !isProfileComplete(user) || missingProfileFields.length > 0;
 
-        <CompleteProfileForm
-          user={user}
-          redirectUrl={redirectParam ? decodeURIComponent(redirectParam) : undefined}
-          onCompleted={() => {
-            const dest = `/profile?completed=true${
-              redirectParam ? `&redirect=${encodeURIComponent(redirectParam)}` : ""
-            }`;
-            router.replace(dest);
-          }}
-        />
-      </div>
-    );
-  }
-
-  // Profile is complete: Render the user's complete profile
   return (
     <div className="max-w-4xl mx-auto py-10 sm:py-16 px-4 sm:px-6 space-y-8">
       {/* Context banner when redirected from Job Application */}
@@ -454,10 +388,17 @@ function ProfileContent() {
             <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">
               User Profile
             </h1>
-            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 inline-flex items-center gap-1">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>100% Complete</span>
-            </span>
+            {missingProfileFields.length === 0 ? (
+              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 inline-flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>100% Complete</span>
+              </span>
+            ) : (
+              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 inline-flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5" />
+                <span>{missingProfileFields.length} Details Missing</span>
+              </span>
+            )}
           </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
             Manage your personal details, credentials, and resume settings.
@@ -465,6 +406,17 @@ function ProfileContent() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          {profileNeedsCompletion && (
+            <button
+              type="button"
+              onClick={() => setIsCompleteProfileModalOpen(true)}
+              className="ui-btn-primary px-3.5 py-2 text-xs font-semibold rounded-xl flex items-center gap-1.5 shadow-sm"
+            >
+              <FileCheck className="w-3.5 h-3.5" />
+              <span>Complete Profile</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={openEditModal}
@@ -472,16 +424,6 @@ function ProfileContent() {
           >
             <Edit3 className="w-3.5 h-3.5" />
             <span>Edit Profile</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={handleResetProfileForDemo}
-            className="px-3 py-2 text-xs font-semibold rounded-xl text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 transition flex items-center gap-1"
-            title="Reset profile completion to test the setup form again"
-          >
-            <RotateCcw className="w-3 h-3" />
-            <span>Reset (Demo)</span>
           </button>
 
           <button
@@ -599,6 +541,22 @@ function ProfileContent() {
               </div>
             </div>
           )}
+
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 space-y-1">
+            <span className="text-slate-400 block font-medium">Current CTC</span>
+            <div className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+              <DollarSign className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
+              <span>{(user as any).currentCtc || "Not specified"}</span>
+            </div>
+          </div>
+
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 space-y-1">
+            <span className="text-slate-400 block font-medium">Notice Period</span>
+            <div className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+              <Briefcase className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
+              <span>{(user as any).noticePeriod || "Not specified"}</span>
+            </div>
+          </div>
 
           <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 space-y-1 sm:col-span-2">
             <span className="text-slate-400 block font-medium">Portfolio / GitHub / Web</span>
@@ -902,6 +860,39 @@ function ProfileContent() {
                   />
                 </div>
 
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Current CTC
+                    </label>
+                    <input
+                      type="text"
+                      value={editCtc}
+                      onChange={(e) => setEditCtc(e.target.value)}
+                      placeholder="e.g. ₹12,00,000 / year"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Notice Period
+                    </label>
+                    <select
+                      value={editNoticePeriod}
+                      onChange={(e) => setEditNoticePeriod(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option value="Immediate (0 - 15 Days)">Immediate (0 - 15 Days)</option>
+                      <option value="30 Days (1 Month)">30 Days (1 Month)</option>
+                      <option value="45 Days">45 Days</option>
+                      <option value="60 Days (2 Months)">60 Days (2 Months)</option>
+                      <option value="90 Days (3 Months)">90 Days (3 Months)</option>
+                      <option value="Serving Notice Period">Serving Notice Period</option>
+                    </select>
+                  </div>
+                </div>
+
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     Bio / Summary
@@ -947,13 +938,63 @@ function ProfileContent() {
         jobTitle={user?.title || "Candidate Profile"}
         candidateEmail={user?.email}
       />
+
+      {/* Complete Profile Modal Dialog */}
+      <AnimatePresence>
+        {isCompleteProfileModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsCompleteProfileModalOpen(false)}
+              className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+            />
+
+            {/* Modal Dialog Container */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 16 }}
+              transition={{ duration: 0.2 }}
+              className="relative w-full max-w-3xl max-h-[92vh] overflow-y-auto z-10 rounded-3xl shadow-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-1"
+            >
+              {/* Floating Close Button */}
+              <button
+                type="button"
+                onClick={() => setIsCompleteProfileModalOpen(false)}
+                className="absolute top-4 right-4 z-20 p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                title="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <CompleteProfileForm
+                user={user}
+                cancelable={true}
+                onCancel={() => setIsCompleteProfileModalOpen(false)}
+                redirectUrl={redirectParam ? decodeURIComponent(redirectParam) : undefined}
+                onCompleted={async () => {
+                  setIsCompleteProfileModalOpen(false);
+                  setSaveSuccess("Profile completed successfully! Welcome to your SoftMax profile.");
+                  setTimeout(() => setSaveSuccess(null), 5000);
+                  if (redirectParam) {
+                    router.replace(decodeURIComponent(redirectParam));
+                  }
+                }}
+              />
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
 export default function ProfilePage() {
   return (
-    <Suspense fallback={<div className="min-h-[60vh] flex items-center justify-center text-xs text-slate-400">Loading user profile...</div>}>
+    <Suspense fallback={<ProfileSkeleton />}>
       <ProfileContent />
     </Suspense>
   );

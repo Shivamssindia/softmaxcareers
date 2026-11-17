@@ -22,6 +22,7 @@ interface ApprovalSyncModalProps {
   candidateName: string;
   candidateEmail?: string;
   jobTitle: string;
+  department?: string;
   errorDetails?: string;
   onClose: () => void;
   onRetry?: () => void;
@@ -33,6 +34,7 @@ export const ApprovalSyncModal: React.FC<ApprovalSyncModalProps> = ({
   candidateName,
   candidateEmail,
   jobTitle,
+  department,
   errorDetails,
   onClose,
   onRetry,
@@ -152,6 +154,14 @@ export const ApprovalSyncModal: React.FC<ApprovalSyncModalProps> = ({
                     {jobTitle}
                   </span>
                 </div>
+                {department && (
+                  <div className="flex justify-between items-center pb-2 border-b border-slate-200/60 dark:border-slate-800">
+                    <span className="text-slate-400 font-medium">Department:</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[200px]">
+                      {department}
+                    </span>
+                  </div>
+                )}
                 {candidateEmail && (
                   <div className="flex justify-between items-center pb-2 border-b border-slate-200/60 dark:border-slate-800">
                     <span className="text-slate-400 font-medium">Email / ID:</span>
@@ -265,6 +275,12 @@ export const ApprovalSyncModal: React.FC<ApprovalSyncModalProps> = ({
                   <span className="text-emerald-800 dark:text-emerald-300 font-medium">Role:</span>
                   <span className="font-semibold text-slate-800 dark:text-slate-200">{jobTitle}</span>
                 </div>
+                {department && (
+                  <div className="flex justify-between items-center pb-2 border-b border-emerald-100 dark:border-emerald-900/50">
+                    <span className="text-emerald-800 dark:text-emerald-300 font-medium">Department:</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">{department}</span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center pb-2 border-b border-emerald-100 dark:border-emerald-900/50">
                   <span className="text-emerald-800 dark:text-emerald-300 font-medium">External Consultant Sync:</span>
                   <span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
@@ -343,7 +359,7 @@ export const ApprovalSyncModal: React.FC<ApprovalSyncModalProps> = ({
               <div className="w-full p-4 rounded-2xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 text-left text-xs space-y-2">
                 <div className="flex items-center justify-between pb-1.5 border-b border-amber-200/60 dark:border-amber-900/40">
                   <span className="font-bold text-amber-900 dark:text-amber-300">External Response / Error:</span>
-                  <span className="font-mono text-[10px] text-amber-700 dark:text-amber-400">system.softmax.in</span>
+                  <span className="font-mono text-[10px] text-amber-700 dark:text-amber-400">backend.in</span>
                 </div>
                 <div className="p-2.5 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-amber-200/80 dark:border-amber-900/60 font-mono text-[11px] text-amber-900 dark:text-amber-200 break-words leading-relaxed max-h-32 overflow-y-auto">
                   {errorDetails || "The external consultant service could not be reached or returned an error status."}

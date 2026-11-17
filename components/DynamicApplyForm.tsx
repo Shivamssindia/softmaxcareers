@@ -31,6 +31,7 @@ import { getJobSlug, findJobBySlugOrId } from "@/lib/slug";
 import { uploadResume } from "@/lib/resumeStorage";
 import { isProfileComplete, getMissingProfileFields } from "@/types";
 import { CompleteProfileForm } from "@/components/CompleteProfileForm";
+import { ShimmerBlock } from "@/components/Shimmer";
 
 interface DynamicApplyFormProps {
   initialJobIdentifier?: string;
@@ -69,6 +70,51 @@ export const DynamicApplyForm: React.FC<DynamicApplyFormProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedAppId, setSubmittedAppId] = useState<string | null>(null);
   const [showRoleDetails, setShowRoleDetails] = useState(true);
+
+  // Mandatory Application Fields (Requirement 12)
+  const [currentCtc, setCurrentCtc] = useState<string>("");
+  const [noticePeriod, setNoticePeriod] = useState<string>("Immediate (0 - 15 Days)");
+
+  // Dynamic Profile Fields (Requirement 2: displayed only if missing in user's profile)
+  const [dynamicName, setDynamicName] = useState<string>("");
+  const [dynamicPhone, setDynamicPhone] = useState<string>("");
+  const [dynamicTitle, setDynamicTitle] = useState<string>("");
+  const [dynamicDepartment, setDynamicDepartment] = useState<string>("Web Development");
+  const [dynamicLocation, setDynamicLocation] = useState<string>("");
+  const [dynamicSkills, setDynamicSkills] = useState<string>("");
+  const [dynamicBio, setDynamicBio] = useState<string>("");
+
+  useEffect(() => {
+    if (user) {
+      if (!currentCtc && (user as any).currentCtc) setCurrentCtc((user as any).currentCtc);
+      if (!noticePeriod && (user as any).noticePeriod) setNoticePeriod((user as any).noticePeriod);
+      if (!dynamicName && (user.name || (user as any).displayName)) {
+        setDynamicName(user.name || (user as any).displayName);
+      }
+      if (!dynamicPhone && user.phone) setDynamicPhone(user.phone);
+      if (!dynamicTitle && user.title) setDynamicTitle(user.title);
+      if (!dynamicDepartment && user.department) setDynamicDepartment(user.department);
+      if (!dynamicLocation && user.location) setDynamicLocation(user.location);
+      if (!dynamicSkills && user.skills) setDynamicSkills(user.skills.join(", "));
+      if (!dynamicBio && user.bio) setDynamicBio(user.bio);
+    }
+  }, [user]);
+
+  const isMissingName = !user?.name && !(user as any)?.displayName;
+  const isMissingPhone = !user?.phone;
+  const isMissingTitle = !user?.title;
+  const isMissingDepartment = !user?.department;
+  const isMissingLocation = !user?.location;
+  const isMissingSkills = !user?.skills || user.skills.length === 0;
+  const isMissingBio = !user?.bio;
+  const hasAnyMissingProfileField =
+    isMissingName ||
+    isMissingPhone ||
+    isMissingTitle ||
+    isMissingDepartment ||
+    isMissingLocation ||
+    isMissingSkills ||
+    isMissingBio;
 
   // Resume Upload State (Saved strictly to user's profile document)
   const [resumeUploading, setResumeUploading] = useState(false);
@@ -156,6 +202,10 @@ export const DynamicApplyForm: React.FC<DynamicApplyFormProps> = ({
     (effectiveIdentifier ? findJobBySlugOrId(effectiveIdentifier, jobs) : undefined) ||
     jobs[0];
 
+  const isResumeEnabled = selectedJob
+    ? selectedJob.requireResume !== false && selectedJob.enableResumeUpload !== false
+    : true;
+
   // Authentication Guard: Redirect to /auth if unauthenticated
   useEffect(() => {
     if (!authLoading && !user) {
@@ -211,13 +261,76 @@ export const DynamicApplyForm: React.FC<DynamicApplyFormProps> = ({
       return;
     }
 
+    // Mandatory Application Fields (Requirement 12)
+    if (!currentCtc.trim()) {
+      setError("Please provide your Current CTC (e.g., ₹12,00,000 / year).");
+      return;
+    }
+
+    if (!noticePeriod.trim()) {
+      setError("Please select or specify your Notice Period.");
+      return;
+    }
+
+    // Job-Specific Configuration Check (Requirement 3)
+    if (isResumeEnabled && selectedJob?.requireResume && !user.resumeUrl && !(user as any)?.resumeData) {
+      setError("A resume is required for this specific job opening. Please upload your resume above to continue.");
+      return;
+    }
+
+    // Dynamic Missing Profile Fields Validation (Requirement 2)
+    if (isMissingName && !dynamicName.trim()) {
+      setError("Please enter your Full Name to complete your profile.");
+      return;
+    }
+    if (isMissingPhone && (!dynamicPhone.trim() || dynamicPhone.trim().length < 7)) {
+      setError("Please provide a valid Phone Number (at least 7 digits).");
+      return;
+    }
+    if (isMissingTitle && !dynamicTitle.trim()) {
+      setError("Please enter your Job Title / Headline.");
+      return;
+    }
+    if (isMissingLocation && !dynamicLocation.trim()) {
+      setError("Please enter your Location / City.");
+      return;
+    }
+    if (isMissingSkills && !dynamicSkills.trim()) {
+      setError("Please list at least one Skill (comma separated).");
+      return;
+    }
+    if (isMissingBio && (!dynamicBio.trim() || dynamicBio.trim().length < 10)) {
+      setError("Please enter a brief Professional Summary / Bio (at least 10 characters).");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
+      // Save dynamic profile details to user's database record (Requirement 2 & 3)
+      const profileUpdates: any = {
+        currentCtc: currentCtc.trim(),
+        noticePeriod: noticePeriod.trim(),
+      };
+      if (isMissingName && dynamicName.trim()) profileUpdates.name = dynamicName.trim();
+      if (isMissingPhone && dynamicPhone.trim()) profileUpdates.phone = dynamicPhone.trim();
+      if (isMissingTitle && dynamicTitle.trim()) profileUpdates.title = dynamicTitle.trim();
+      if (isMissingDepartment && dynamicDepartment) profileUpdates.department = dynamicDepartment;
+      if (isMissingLocation && dynamicLocation.trim()) profileUpdates.location = dynamicLocation.trim();
+      if (isMissingSkills && dynamicSkills.trim()) {
+        profileUpdates.skills = dynamicSkills.split(",").map((s) => s.trim()).filter(Boolean);
+      }
+      if (isMissingBio && dynamicBio.trim()) profileUpdates.bio = dynamicBio.trim();
+      profileUpdates.profileCompleted = true;
+
+      await updateUserProfile(profileUpdates);
+
       const appId = await applyForJob({
         jobId: selectedJob ? selectedJob.id : selectedJobId || "general-pool",
         uid: user.uid,
         experienceYears,
         description: description.trim(),
+        currentCtc: currentCtc.trim(),
+        noticePeriod: noticePeriod.trim(),
         resumeUrl: user.resumeUrl,
         resumeFileName: user.resumeUrl ? "Candidate Resume" : undefined,
       } as any);
@@ -233,14 +346,17 @@ export const DynamicApplyForm: React.FC<DynamicApplyFormProps> = ({
   // Auth Loading State
   if (authLoading) {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-3">
-        <img
-          src="/logo.jpg"
-          alt="SoftMax Logo"
-          className="w-12 h-12 rounded-xl object-contain bg-white shadow-sm border border-slate-200 dark:border-slate-800 p-0.5 animate-pulse"
-        />
-        <div className="w-7 h-7 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-        <p className="text-xs text-slate-500">Checking authorization...</p>
+      <div className="max-w-3xl mx-auto py-8 px-4 space-y-6">
+        <div className="p-8 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4">
+          <ShimmerBlock className="h-7 w-48 rounded-lg" />
+          <ShimmerBlock className="h-4 w-72 rounded" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
+            <ShimmerBlock className="h-12 rounded-xl" />
+            <ShimmerBlock className="h-12 rounded-xl" />
+          </div>
+          <ShimmerBlock className="h-28 rounded-xl" />
+          <ShimmerBlock className="h-12 w-40 rounded-xl" />
+        </div>
       </div>
     );
   }
@@ -256,63 +372,6 @@ export const DynamicApplyForm: React.FC<DynamicApplyFormProps> = ({
           Sign In Required to Apply
         </p>
         <p className="text-xs text-slate-500">Redirecting to sign in...</p>
-      </div>
-    );
-  }
-
-  // Profile Completion Guard on Apply Portal:
-  // If candidate has any data missing in user data, show complete profile form with redirect to application!
-  if (user.role !== "admin" && !isProfileComplete(user)) {
-    const slug = selectedJob
-      ? getJobSlug(selectedJob)
-      : effectiveIdentifier
-      ? getJobSlug(effectiveIdentifier)
-      : "";
-    const redirectUrl = slug ? `/apply/${slug}` : "/apply";
-    const missingFields = getMissingProfileFields(user);
-
-    return (
-      <div className="max-w-3xl mx-auto py-10 sm:py-16 px-4 sm:px-6 space-y-6">
-        <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="p-4 sm:p-5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs sm:text-sm flex items-start gap-3.5 shadow-sm"
-        >
-          <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <h2 className="font-bold text-sm sm:text-base text-amber-900 dark:text-amber-100">
-              Complete Profile Required to Apply
-            </h2>
-            <p className="text-amber-800 dark:text-amber-300">
-              Your candidate profile is currently missing some required details. Please complete the form below to proceed directly with your job application for{" "}
-              <strong>{selectedJob?.title || "this position"}</strong>.
-            </p>
-            {missingFields.length > 0 && (
-              <div className="pt-1.5 flex flex-wrap gap-1.5 items-center">
-                <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400">
-                  Missing information:
-                </span>
-                {missingFields.map((field) => (
-                  <span
-                    key={field}
-                    className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200 border border-amber-200 dark:border-amber-800/60"
-                  >
-                    {field}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-        </motion.div>
-
-        <CompleteProfileForm
-          user={user}
-          redirectUrl={redirectUrl}
-          onCompleted={() => {
-            // Re-render once complete
-            router.refresh();
-          }}
-        />
       </div>
     );
   }
@@ -766,6 +825,186 @@ export const DynamicApplyForm: React.FC<DynamicApplyFormProps> = ({
             </div>
           </div>
 
+          {/* Requirement 2: Dynamically display only missing fields from user's record */}
+          {hasAnyMissingProfileField && (
+            <div className="p-5 rounded-2xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 space-y-4">
+              <div className="flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-amber-900 dark:text-amber-200">
+                    Additional Profile Details Required
+                  </h3>
+                  <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                    Please provide the missing details below to complete your candidate record for this application.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                {isMissingName && (
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                      Full Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={dynamicName}
+                      onChange={(e) => setDynamicName(e.target.value)}
+                      placeholder="e.g. John Doe"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
+                    />
+                  </div>
+                )}
+
+                {isMissingPhone && (
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                      Phone Number *
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      value={dynamicPhone}
+                      onChange={(e) => setDynamicPhone(e.target.value)}
+                      placeholder="+91 98765 43210"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
+                    />
+                  </div>
+                )}
+
+                {isMissingTitle && (
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                      Job Title / Headline *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={dynamicTitle}
+                      onChange={(e) => setDynamicTitle(e.target.value)}
+                      placeholder="e.g. Software Engineer"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
+                    />
+                  </div>
+                )}
+
+                {isMissingDepartment && (
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                      Department *
+                    </label>
+                    <select
+                      value={dynamicDepartment}
+                      onChange={(e) => setDynamicDepartment(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
+                    >
+                      <option value="Web Development">Web Development</option>
+                      <option value="System Design">System Design</option>
+                      <option value="Software Engineering">Software Engineering</option>
+                      <option value="Cloud & DevOps">Cloud & DevOps</option>
+                      <option value="UI/UX Design">UI/UX Design</option>
+                      <option value="AI & Data">AI & Data</option>
+                      <option value="IT Project Management">IT Project Management</option>
+                      <option value="Business Analysis & Consulting">Business Analysis & Consulting</option>
+                      <option value="Talent Acquisition & HR">Talent Acquisition & HR</option>
+                      <option value="Sales & Client Relations">Sales & Client Relations</option>
+                    </select>
+                  </div>
+                )}
+
+                {isMissingLocation && (
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                      Location / City *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={dynamicLocation}
+                      onChange={(e) => setDynamicLocation(e.target.value)}
+                      placeholder="e.g. Bengaluru, India"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
+                    />
+                  </div>
+                )}
+
+                {isMissingSkills && (
+                  <div className="sm:col-span-2">
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                      Skills & Expertise (comma separated) *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={dynamicSkills}
+                      onChange={(e) => setDynamicSkills(e.target.value)}
+                      placeholder="e.g. React, Node.js, TypeScript, Next.js"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
+                    />
+                  </div>
+                )}
+
+                {isMissingBio && (
+                  <div className="sm:col-span-2">
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                      Professional Summary / Bio *
+                    </label>
+                    <textarea
+                      required
+                      rows={2}
+                      value={dynamicBio}
+                      onChange={(e) => setDynamicBio(e.target.value)}
+                      placeholder="Brief overview of your professional background..."
+                      className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Mandatory Compensation & Notice Period (Requirement 12) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5 flex items-center justify-between">
+                <span>Current CTC *</span>
+                <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold uppercase">Mandatory</span>
+              </label>
+              <div className="relative">
+                <DollarSign className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                <input
+                  type="text"
+                  required
+                  value={currentCtc}
+                  onChange={(e) => setCurrentCtc(e.target.value)}
+                  placeholder="e.g. ₹12,00,000 / year or 12 LPA"
+                  className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5 flex items-center justify-between">
+                <span>Notice Period *</span>
+                <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold uppercase">Mandatory</span>
+              </label>
+              <select
+                value={noticePeriod}
+                onChange={(e) => setNoticePeriod(e.target.value)}
+                required
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+              >
+                <option value="Immediate (0 - 15 Days)">Immediate (0 - 15 Days)</option>
+                <option value="30 Days (1 Month)">30 Days (1 Month)</option>
+                <option value="45 Days">45 Days</option>
+                <option value="60 Days (2 Months)">60 Days (2 Months)</option>
+                <option value="90 Days (3 Months)">90 Days (3 Months)</option>
+                <option value="Serving Notice Period">Serving Notice Period</option>
+              </select>
+            </div>
+          </div>
+
           {/* Years of Experience */}
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
@@ -801,142 +1040,166 @@ export const DynamicApplyForm: React.FC<DynamicApplyFormProps> = ({
             />
           </div>
 
-          {/* Resume Upload (Saved Strictly to User's Profile Document) */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                Resume / Curriculum Vitae
-              </label>
-              <span className="text-[11px] text-slate-400">
-                Attached to your candidate account
-              </span>
-            </div>
+          {/* Resume Upload (Saved Strictly to User's Profile Document) - Only displayed if opening has resume enabled */}
+          {isResumeEnabled && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <span>Resume / Curriculum Vitae</span>
+                  {selectedJob?.requireResume && (
+                    <span className="text-[10px] font-bold text-rose-600 bg-rose-50 dark:bg-rose-950/60 px-1.5 py-0.5 rounded border border-rose-200 dark:border-rose-900">
+                      * Required for this role
+                    </span>
+                  )}
+                </label>
+                <span className="text-[11px] text-slate-400">
+                  Attached to your candidate account
+                </span>
+              </div>
 
-            <div className="p-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/40 transition hover:border-indigo-400 dark:hover:border-indigo-500">
-              <input
-                id="apply-resume-input"
-                type="file"
-                accept=".pdf,.doc,.docx"
-                className="hidden"
-                disabled={resumeUploading}
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleFormResumeUpload(file);
-                  e.target.value = "";
-                }}
-              />
+              <div className="p-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/40 transition hover:border-indigo-400 dark:hover:border-indigo-500">
+                <input
+                  id="apply-resume-input"
+                  type="file"
+                  accept=".pdf,.doc,.docx"
+                  className="hidden"
+                  disabled={resumeUploading}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFormResumeUpload(file);
+                    e.target.value = "";
+                  }}
+                />
 
-              {user?.resumeUrl || (user as any)?.resumeData ? (
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center flex-shrink-0">
-                      <FileText className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-white">
-                        <span>Resume on Profile</span>
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                {user?.resumeUrl || (user as any)?.resumeData ? (
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center flex-shrink-0">
+                        <FileText className="w-5 h-5" />
                       </div>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                        Your latest uploaded resume is active and linked to this
-                        application.
-                      </p>
+                      <div>
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-white">
+                          <span>Resume on Profile</span>
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                        </div>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                          Your latest uploaded resume is active and linked to this
+                          application.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={user?.resumeUrl || (user as any)?.resumeData}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition flex items-center gap-1"
+                      >
+                        <span>View</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                      <button
+                        type="button"
+                        disabled={resumeUploading}
+                        onClick={() =>
+                          document.getElementById("apply-resume-input")?.click()
+                        }
+                        className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        {resumeUploading ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
+                            <span>Uploading...</span>
+                          </>
+                        ) : (
+                          <>
+                            <UploadCloud className="w-3.5 h-3.5 text-indigo-500" />
+                            <span>Replace Resume</span>
+                          </>
+                        )}
+                      </button>
                     </div>
                   </div>
-
-                  <div className="flex items-center gap-2">
-                    <a
-                      href={user?.resumeUrl || (user as any)?.resumeData}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition flex items-center gap-1"
-                    >
-                      <span>View</span>
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
+                ) : (
+                  <div className="text-center py-3">
+                    <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto mb-2">
+                      <UploadCloud className="w-5 h-5" />
+                    </div>
+                    <p className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                      No resume uploaded to your profile yet
+                    </p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      PDF, DOC, or DOCX (stored directly in your candidate account)
+                    </p>
                     <button
                       type="button"
                       disabled={resumeUploading}
                       onClick={() =>
                         document.getElementById("apply-resume-input")?.click()
                       }
-                      className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition flex items-center gap-1.5 disabled:opacity-50"
+                      className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition shadow-sm disabled:opacity-50"
                     >
                       {resumeUploading ? (
                         <>
-                          <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
-                          <span>Uploading...</span>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Uploading to Profile...</span>
                         </>
                       ) : (
                         <>
-                          <UploadCloud className="w-3.5 h-3.5 text-indigo-500" />
-                          <span>Replace Resume</span>
+                          <UploadCloud className="w-4 h-4" />
+                          <span>Upload Resume</span>
                         </>
                       )}
                     </button>
                   </div>
-                </div>
-              ) : (
-                <div className="text-center py-3">
-                  <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto mb-2">
-                    <UploadCloud className="w-5 h-5" />
-                  </div>
-                  <p className="text-xs font-medium text-slate-700 dark:text-slate-300">
-                    No resume uploaded to your profile yet
-                  </p>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
-                    PDF, DOC, or DOCX (stored directly in your candidate account)
-                  </p>
-                  <button
-                    type="button"
-                    disabled={resumeUploading}
-                    onClick={() =>
-                      document.getElementById("apply-resume-input")?.click()
-                    }
-                    className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition shadow-sm disabled:opacity-50"
-                  >
-                    {resumeUploading ? (
-                      <>
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        <span>Uploading to Profile...</span>
-                      </>
-                    ) : (
-                      <>
-                        <UploadCloud className="w-4 h-4" />
-                        <span>Upload Resume</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              )}
+                )}
 
-              {/* Upload Feedback */}
-              {resumeUploadSuccess && (
-                <div className="mt-2.5 p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-600" />
-                  <span>{resumeUploadSuccess}</span>
-                </div>
-              )}
-              {resumeUploadError && (
-                <div className="mt-2.5 p-2.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300 flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-600" />
-                  <span>{resumeUploadError}</span>
-                </div>
-              )}
+                {/* Upload Feedback */}
+                {resumeUploadSuccess && (
+                  <div className="mt-2.5 p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-600" />
+                    <span>{resumeUploadSuccess}</span>
+                  </div>
+                )}
+                {resumeUploadError && (
+                  <div className="mt-2.5 p-2.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-600" />
+                    <span>{resumeUploadError}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Application Cancellation Policy Notice (Requirement 13) */}
+          <div className="p-4 rounded-xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-300/80 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs flex items-start gap-3 shadow-xs">
+            <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+            <div className="space-y-0.5">
+              <h4 className="font-bold text-[11px] uppercase tracking-wider text-amber-800 dark:text-amber-300">
+                Application Cancellation Policy Notice
+              </h4>
+              <p className="text-[11px] text-amber-800/90 dark:text-amber-300/90 leading-relaxed">
+                If a candidate fails to attend the scheduled VR interview or examination for any reason, their application will be rejected/cancelled.
+              </p>
             </div>
           </div>
 
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={isSubmitting || resumeUploading || selectedJob?.status === "closed"}
+            disabled={
+              isSubmitting ||
+              (isResumeEnabled && resumeUploading) ||
+              selectedJob?.status === "closed"
+            }
             className="ui-btn-primary w-full py-3.5 text-sm font-bold rounded-xl flex items-center justify-center gap-2 disabled:opacity-50 hover:scale-[1.01] active:scale-[0.99] transition-transform"
           >
             {selectedJob?.status === "closed" ? (
               <span>Position Closed (Applications Disabled)</span>
             ) : isSubmitting ? (
               <span>Submitting Application...</span>
-            ) : resumeUploading ? (
+            ) : isResumeEnabled && resumeUploading ? (
               <span>Waiting for resume upload...</span>
             ) : (
               <>

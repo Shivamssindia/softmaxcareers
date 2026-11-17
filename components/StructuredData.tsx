@@ -7,14 +7,20 @@ interface StructuredDataProps {
 }
 
 export const StructuredData: React.FC<StructuredDataProps> = ({ jobs = [] }) => {
+  const siteOrigin =
+    process.env.NEXT_PUBLIC_ORIGIN ||
+    process.env.ORIGIN ||
+    process.env.origin ||
+    "https://careers.softmax.in";
+
   // 1. Organization Schema
   const organizationSchema = {
     "@context": "https://schema.org",
     "@type": "Organization",
     name: "SoftMax Technologies",
     alternateName: ["SoftMax", "SoftMax Careers", "SoftMax IT Careers"],
-    url: "https://softmax.in",
-    logo: "https://softmax.in/logo.jpg",
+    url: siteOrigin,
+    logo: `${siteOrigin}/logo.jpg`,
     contactPoint: [
       {
         "@type": "ContactPoint",
@@ -32,7 +38,7 @@ export const StructuredData: React.FC<StructuredDataProps> = ({ jobs = [] }) => 
       },
     ],
     sameAs: [
-      "https://softmax.in",
+      siteOrigin,
       "https://linkedin.com/company/softmax-tech",
       "https://twitter.com/softmax_tech",
       "https://github.com/softmax-tech",
@@ -44,10 +50,10 @@ export const StructuredData: React.FC<StructuredDataProps> = ({ jobs = [] }) => 
     "@context": "https://schema.org",
     "@type": "WebSite",
     name: "SoftMax IT Careers Platform",
-    url: "https://softmax.in",
+    url: siteOrigin,
     potentialAction: {
       "@type": "SearchAction",
-      target: "https://softmax.in/openings?search={search_term_string}",
+      target: `${siteOrigin}/openings?search={search_term_string}`,
       "query-input": "required name=search_term_string",
     },
   };
@@ -71,7 +77,7 @@ export const StructuredData: React.FC<StructuredDataProps> = ({ jobs = [] }) => 
           ${job.requirements.map((r) => `<li>${r}</li>`).join("")}
         </ul>
         <p><strong>Experience:</strong> ${job.experience}</p>
-        <p><strong>Apply directly at:</strong> <a href="https://softmax.in/apply/${getJobSlug(job)}">https://softmax.in/apply/${getJobSlug(job)}</a></p>
+        <p><strong>Apply directly at:</strong> <a href="${siteOrigin}/apply/${getJobSlug(job)}">${siteOrigin}/apply/${getJobSlug(job)}</a></p>
       `,
       datePosted: `${job.postedDate}T09:00:00+05:30`,
       validThrough: `${job.validThrough || "2027-06-30"}T23:59:59+05:30`,
@@ -79,8 +85,8 @@ export const StructuredData: React.FC<StructuredDataProps> = ({ jobs = [] }) => 
       hiringOrganization: {
         "@type": "Organization",
         name: "SoftMax Technologies",
-        sameAs: "https://softmax.in",
-        logo: "https://softmax.in/logo.jpg",
+        sameAs: siteOrigin,
+        logo: `${siteOrigin}/logo.jpg`,
       },
       jobLocation: {
         "@type": "Place",
